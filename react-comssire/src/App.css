@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Quita los estilos del template de Vite que deforman la app */
+html, body, #root {
+  height: 100%;
+}
+
+/* No limites el ancho ni centres todo el texto */
+#root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* Evita scroll horizontal accidental */
+body {
+  overflow-x: hidden;
+}

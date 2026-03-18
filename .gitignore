@@ -1,0 +1,70 @@
+# ======================
+# GENERAL
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# VARIABLES / SECRETOS
+# ======================
+.env
+.env.*
+*.env
+
+# ======================
+# .NET (Backend + SyncAgent)
+# ======================
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# Archivos sensibles
+**/appsettings.Development.json
+**/appsettings.*.Development.json
+
+# Logs
+*.log
+
+# ======================
+# NODE / REACT (Frontend)
+# ======================
+**/node_modules/
+**/dist/
+**/build/
+**/dev-dist/
+**/.vite/
+**/coverage/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ======================
+# CACHE / TEMP
+# ======================
+.cache/
+.temp/
+.tmp/
+
+# ======================
+# ARCHIVOS PESADOS
+# ======================
+*.zip
+*.rar
+*.7z
+
+# ======================
+# PUBLICACIONES
+# ======================
+publish/
+out/
+
+# ======================
+# IDEs
+# ======================
+.vscode/
+.idea/

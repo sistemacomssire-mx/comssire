@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "./assets/styles.css";
+/* ==== Fix selects en tema oscuro ==== */
+select.input,
+.input select {
+  color: #000 !important;
+  background: #fff !important;
+}
+
+select.input option {
+  color: #000 !important;
+  background: #fff !important;
+}
+
+/* (Opcional) inputs también */
+input.input {
+  color: #000 !important;
+  background: #fff !important;
+}

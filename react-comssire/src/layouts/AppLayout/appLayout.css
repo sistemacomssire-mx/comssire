@@ -1,0 +1,139 @@
+/* ===== LAYOUT PRINCIPAL ===== */
+.app-shell {
+  height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Sidebar */
+.app-sidebar {
+  height: 100vh;
+  background-color: #0f172a;
+  border-right: 1px solid #1e293b;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  flex: 0 0 auto;
+  z-index: 50;
+}
+
+.app-sidebar.open {
+  width: 16rem;
+}
+
+.app-sidebar.closed {
+  width: 0;
+  margin-left: 0;
+  border-right: 0;
+}
+
+/* Sidebar content */
+.sidebar-content {
+  width: 16rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Main content */
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  width: auto;
+}
+
+/* Topbar */
+.app-topbar {
+  flex-shrink: 0;
+  z-index: 40;
+  width: 100%;
+}
+
+/* Área de scroll */
+.app-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem;
+  width: 100%;
+}
+
+/* ===== MOBILE DRAWER ===== */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 60;
+  backdrop-filter: blur(2px);
+}
+
+.sidebar-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 18rem;
+  max-width: 85vw;
+  height: 100vh;
+  background-color: #0f172a;
+  border-right: 1px solid #1e293b;
+  transform: translateX(-100%);
+  transition: transform 250ms ease;
+  z-index: 70;
+  overflow-y: auto;
+}
+
+.sidebar-drawer.is-open {
+  transform: translateX(0);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 767px) {
+  .app-sidebar {
+    display: none;
+  }
+
+  .app-scroll {
+    padding: 0.75rem;
+  }
+}
+
+/* ===== SCROLL PERSONALIZADO ===== */
+.app-scroll::-webkit-scrollbar,
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.app-scroll::-webkit-scrollbar-track,
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-scroll::-webkit-scrollbar-thumb,
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.app-scroll::-webkit-scrollbar-thumb:hover,
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
