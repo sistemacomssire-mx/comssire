@@ -188,19 +188,19 @@ export default function LinesSection({
 
   const handleWarehouseChange = (idx, value) => {
     if (!value) return;
-    
+
     const line = lines[idx];
-    
+
     if (typeof onUpdateWarehouseDirect === "function" && line?.backendPartidaId) {
       onUpdateWarehouseDirect(line.backendPartidaId, value, idx);
       return;
     }
-    
+
     if (typeof onChangeLineWarehouse === "function") {
       onChangeLineWarehouse(idx, value);
       return;
     }
-    
+
     if (typeof onChangeWarehouse === "function") {
       onChangeWarehouse(idx, value);
       return;
@@ -212,45 +212,59 @@ export default function LinesSection({
     onRemoveLine(line, idx);
   };
 
+  const inputClass =
+    "w-full px-4 py-3 text-base bg-white border-[1.7px] border-slate-300 rounded-2xl text-slate-900 outline-none transition shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)] focus:ring-4 focus:ring-orange-500/10 focus:border-orange-400";
+
+  const sectionCard =
+    "compra-card";
+
+  const softButton =
+    "btn-soft-orange px-5 py-3 text-sm rounded-2xl transition-colors border font-semibold shadow-[0_8px_18px_rgba(250,137,26,0.08)]";
+
+  const primaryButton =
+    "w-full px-4 py-3 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-[0_10px_22px_rgba(250,137,26,0.18)]";
+
   return (
-    <div className="space-y-3">
-      {/* Formulario de búsqueda compacto */}
+    <div className="space-y-5">
       {!hideAddForm && (
-        <div className="bg-slate-800/30 rounded p-3">
-          {/* Buscador rápido */}
-          <div className="flex items-center gap-2 mb-3">
+        <div className={`${sectionCard} p-5`}>
+          <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 relative">
               <input
-                className="w-full px-3 py-1.5 pl-8 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={`${inputClass} pl-11`}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Buscar producto (clave/descripción)..."
                 disabled={saving || readOnly}
               />
-              <svg className="w-4 h-4 absolute left-2 top-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searching && (
-                <div className="absolute right-2 top-2">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={onLookup}
               disabled={saving || readOnly}
-              className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded"
+              className={softButton}
             >
               Buscar
             </button>
           </div>
 
-          {/* Selectores compactos */}
-          <div className="grid grid-cols-12 gap-2 mb-3">
+          <div className="grid grid-cols-12 gap-4 mb-5">
             <div className="col-span-5">
               <select
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 value={selectedGroupKey}
                 onChange={(e) => handlePickGroup(e.target.value)}
                 disabled={saving || readOnly || !groups.length}
@@ -263,10 +277,10 @@ export default function LinesSection({
                 ))}
               </select>
             </div>
-            
+
             <div className="col-span-5">
               <select
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 value={selectedCode}
                 onChange={(e) => handlePickCode(e.target.value)}
                 disabled={saving || readOnly || !selectedGroup}
@@ -279,10 +293,10 @@ export default function LinesSection({
                 ))}
               </select>
             </div>
-            
+
             <div className="col-span-2">
               <select
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 value={String(almacenLineaSel || "")}
                 onChange={(e) => setAlmacenLineaSel?.(e.target.value)}
                 disabled={saving || readOnly}
@@ -301,12 +315,11 @@ export default function LinesSection({
             </div>
           </div>
 
-          {/* Formulario de entrada compacto */}
-          <div className="grid grid-cols-12 gap-2 items-end">
+          <div className="grid grid-cols-12 gap-4 items-end">
             <div className="col-span-3">
-              <label className="text-xs text-slate-400">Código</label>
+              <label className="compra-label">Código</label>
               <input
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 value={piezaCodigo}
                 onChange={(e) => setPiezaCodigo?.(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && onLookup?.()}
@@ -314,22 +327,22 @@ export default function LinesSection({
                 disabled={saving || readOnly}
               />
             </div>
-            
+
             <div className="col-span-3">
-              <label className="text-xs text-slate-400">Descripción</label>
+              <label className="compra-label">Descripción</label>
               <input
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 value={piezaDesc}
                 onChange={(e) => setPiezaDesc?.(e.target.value)}
                 placeholder="Descripción"
                 disabled={saving || readOnly}
               />
             </div>
-            
+
             <div className="col-span-2">
-              <label className="text-xs text-slate-400">Cantidad</label>
+              <label className="compra-label">Cantidad</label>
               <input
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 type="number"
                 min="1"
                 value={piezaCant}
@@ -337,11 +350,11 @@ export default function LinesSection({
                 disabled={saving || readOnly}
               />
             </div>
-            
+
             <div className="col-span-2">
-              <label className="text-xs text-slate-400">Costo</label>
+              <label className="compra-label">Costo</label>
               <input
-                className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white"
+                className={inputClass}
                 type="number"
                 step="0.01"
                 value={piezaPrecio}
@@ -349,28 +362,30 @@ export default function LinesSection({
                 disabled={saving || readOnly}
               />
             </div>
-            
+
             <div className="col-span-2">
               <button
                 onClick={onAddLine}
                 disabled={saving || readOnly}
-                className="w-full px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded flex items-center justify-center gap-1"
+                className={primaryButton}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 5V19" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M5 12H19" strokeWidth="2" strokeLinecap="round" />
                 </svg>
                 Agregar
               </button>
             </div>
           </div>
 
-          {/* Existencias en tooltip compacto */}
           {existencias?.length > 0 && (
-            <div className="mt-2 text-xs text-slate-400 flex items-center gap-2">
-              <span>Existencias:</span>
+            <div className="mt-4 text-xs text-slate-500 flex items-center gap-2 flex-wrap">
+              <span className="font-semibold">Existencias:</span>
               {existencias.map((x, idx) => (
-                <span key={idx} className="px-1.5 py-0.5 bg-slate-800 rounded">
+                <span
+                  key={idx}
+                  className="px-3 py-1.5 bg-slate-50 rounded-2xl text-slate-700 border border-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                >
                   Alm {x.numAlm ?? x.NumAlm}: {x.existencia ?? x.Existencia ?? 0}
                 </span>
               ))}
@@ -379,55 +394,63 @@ export default function LinesSection({
         </div>
       )}
 
-      {/* Tabla de partidas compacta */}
-      <div className="bg-slate-800/30 rounded overflow-hidden">
-        <div className="px-3 py-2 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-          <span className="text-sm font-medium text-white">
+      <div className={`${sectionCard} overflow-hidden`}>
+        <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <span className="text-[1rem] font-semibold text-slate-700">
             Partidas ({lines.length})
           </span>
+
           {lines.length > 0 && almacenHeader && onSyncWarehouses && (
             <button
               onClick={onSyncWarehouses}
               disabled={saving || readOnly}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+              className="text-sm text-slate-500 hover:text-orange-700 flex items-center gap-2 transition-colors font-medium"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
               Sincronizar
             </button>
           )}
         </div>
 
-        <div className="overflow-auto max-h-96">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/80 text-slate-400 text-xs">
+            <thead className="text-xs">
               <tr>
-                <th className="text-left px-3 py-2">Clave</th>
-                <th className="text-left px-3 py-2">Descripción</th>
-                <th className="text-left px-3 py-2">Almacén</th>
-                <th className="text-right px-3 py-2">Cant</th>
-                <th className="text-right px-3 py-2">Costo</th>
-                <th className="text-right px-3 py-2">Importe</th>
-                <th className="text-center px-3 py-2"></th>
+                <th className="text-left px-5 py-4 font-semibold">Clave</th>
+                <th className="text-left px-5 py-4 font-semibold">Descripción</th>
+                <th className="text-left px-5 py-4 font-semibold">Almacén</th>
+                <th className="text-right px-5 py-4 font-semibold">Cant</th>
+                <th className="text-right px-5 py-4 font-semibold">Costo</th>
+                <th className="text-right px-5 py-4 font-semibold">Importe</th>
+                <th className="text-center px-5 py-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+
+            <tbody>
               {!lines?.length ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-slate-500 py-4 text-sm">
+                  <td colSpan={7} className="text-center text-slate-400 py-12 text-base">
                     Sin partidas
                   </td>
                 </tr>
               ) : (
                 lines.map((l, idx) => (
-                  <tr key={l.backendPartidaId || `${l.codigo}-${idx}`} className="hover:bg-slate-700/30">
-                    <td className="px-3 py-1.5 text-white">{l.codigo}</td>
-                    <td className="px-3 py-1.5 text-white truncate max-w-[200px]">{l.desc}</td>
-                    <td className="px-3 py-1.5">
+                  <tr
+                    key={l.backendPartidaId || `${l.codigo}-${idx}`}
+                    className="transition-colors hover:bg-orange-50/40"
+                  >
+                    <td className="px-5 py-5 text-slate-900 font-semibold">{l.codigo}</td>
+                    <td className="px-5 py-5 text-slate-600 truncate max-w-[240px]">{l.desc}</td>
+                    <td className="px-5 py-5">
                       <select
-                        className="w-24 px-1.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded text-white"
+                        className="w-40 px-3 py-2.5 text-sm bg-white border-[1.6px] border-slate-300 rounded-2xl text-slate-900 outline-none transition shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)] focus:ring-4 focus:ring-orange-500/10 focus:border-orange-400"
                         value={String(l.warehouse ?? "")}
                         onChange={(e) => handleWarehouseChange(idx, e.target.value)}
                         disabled={saving || readOnly}
@@ -437,29 +460,29 @@ export default function LinesSection({
                           const label = pickWarehouseLabel(a);
                           return (
                             <option key={value} value={value}>
-                              {label.length > 15 ? label.substring(0, 15) + '…' : label}
+                              {label.length > 18 ? `${label.substring(0, 18)}…` : label}
                             </option>
                           );
                         })}
                       </select>
                     </td>
-                    <td className="px-3 py-1.5 text-right text-white">{l.cant}</td>
-                    <td className="px-3 py-1.5 text-right text-white">{safeMoney(l.precio)}</td>
-                    <td className="px-3 py-1.5 text-right text-white font-medium">
+                    <td className="px-5 py-5 text-right text-slate-900">{l.cant}</td>
+                    <td className="px-5 py-5 text-right text-slate-900">{safeMoney(l.precio)}</td>
+                    <td className="px-5 py-5 text-right text-slate-900 font-semibold">
                       {safeMoney(Number(l.cant) * Number(l.precio))}
                     </td>
-                    <td className="px-3 py-1.5 text-center">
+                    <td className="px-5 py-5 text-center">
                       <button
                         onClick={() => handleRemove(l, idx)}
                         disabled={saving || readOnly}
-                        className="text-slate-500 hover:text-red-400 transition-colors"
+                        className="text-slate-400 hover:text-orange-700 transition-colors"
                         title="Eliminar"
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          <path d="M5 7L6 19C6 20.1046 6.89543 21 8 21H16C17.1046 21 18 20.1046 18 19L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path d="M4 7H20" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M10 11V17" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M14 11V17" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M5 7L6 19C6 20.1046 6.89543 21 8 21H16C17.1046 21 18 20.1046 18 19L19 7" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                       </button>
                     </td>

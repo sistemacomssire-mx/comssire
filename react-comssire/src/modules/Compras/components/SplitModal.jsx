@@ -1,6 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+function ModalShell({ children }) {
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-[4px]">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Header({ draft, onClose }) {
+  return (
+    <div className="border-b border-slate-200 px-6 py-5 bg-white">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+            Reparto
+          </p>
+          <h3 className="mt-1 text-lg font-semibold text-slate-900">
+            Repartir a almacenes
+          </h3>
+          <p className="mt-1.5 text-sm text-slate-500">
+            {draft?.codigo} · Total requerido: {draft?.cantTotal}
+          </p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:border-[#FA891A] hover:bg-orange-50 hover:text-[#FA891A]"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SplitModal({ open, onClose, almacenes = [], draft, onSave }) {
   const [rows, setRows] = useState([]);
   const lastInitKeyRef = useRef("");
@@ -10,7 +49,10 @@ export default function SplitModal({ open, onClose, almacenes = [], draft, onSav
   const safeKey = (a) => String(a?.cveAlm ?? a?.CveAlm ?? "");
   const safeLabel = (a) => String(a?.descr ?? a?.Descr ?? safeKey(a));
 
-  const fallbackWh = useMemo(() => (almacenes?.length ? safeKey(almacenes[0]) : ""), [almacenes]);
+  const fallbackWh = useMemo(
+    () => (almacenes?.length ? safeKey(almacenes[0]) : ""),
+    [almacenes]
+  );
 
   useEffect(() => {
     if (!open || !draft) return;
@@ -31,9 +73,11 @@ export default function SplitModal({ open, onClose, almacenes = [], draft, onSav
     setRows((prev) => [...prev, { warehouse: def, qty: 0 }]);
   };
 
-  const removeRow = (idx) => setRows((prev) => prev.filter((_, i) => i !== idx));
+  const removeRow = (idx) =>
+    setRows((prev) => prev.filter((_, i) => i !== idx));
 
-  const updateRow = (idx, patch) => setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const updateRow = (idx, patch) =>
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   const handleSave = () => {
     const sum = rows.reduce((a, r) => a + Number(r.qty || 0), 0);
@@ -50,32 +94,46 @@ export default function SplitModal({ open, onClose, almacenes = [], draft, onSav
     lastInitKeyRef.current = "";
   };
 
+  // Estilos consistentes
+  const inputClass =
+    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-all focus:border-[#FA891A] focus:ring-2 focus:ring-[#FA891A]/20 hover:border-slate-400";
+
+  // Botón blanco con borde naranja
+  const outlineOrangeButton =
+    "inline-flex items-center justify-center rounded-xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-medium text-[#FA891A] transition-all hover:bg-orange-50 hover:border-[#FA891A] hover:text-[#FA891A]";
+
+  // Botón naranja sólido
+  const solidOrangeButton =
+    "inline-flex items-center justify-center rounded-xl border border-transparent bg-[#FA891A] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#E07A12] shadow-md hover:shadow-lg";
+
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-slate-800 rounded-lg w-full max-w-md overflow-hidden border border-slate-700">
-        <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
-          <div>
-            <div className="font-medium text-white">Repartir a almacenes</div>
-            <div className="text-xs text-slate-400">
-              {draft?.codigo} · Total: {draft?.cantTotal}
-            </div>
-          </div>
-          <button onClick={handleClose} className="text-slate-400 hover:text-white">✕</button>
+    <ModalShell>
+      <Header draft={draft} onClose={handleClose} />
+
+      <div className="px-6 py-5">
+        <div className="mb-5 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <span className="text-sm font-medium text-slate-600">Suma actual</span>
+          <span
+            className={`text-sm font-semibold ${
+              total === target ? "text-emerald-600" : "text-[#FA891A]"
+            }`}
+          >
+            {total} / {target}
+          </span>
         </div>
 
-        <div className="p-4 space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Suma:</span>
-            <span className={total === target ? "text-white font-medium" : "text-red-400 font-medium"}>
-              {total} / {target}
-            </span>
-          </div>
-
-          <div className="space-y-2 max-h-60 overflow-auto">
-            {rows.map((r, idx) => (
-              <div key={idx} className="flex gap-2">
+        <div className="space-y-3 max-h-[320px] overflow-auto pr-1">
+          {rows.map((r, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-12 gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+            >
+              <div className="col-span-7">
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Almacén
+                </label>
                 <select
-                  className="flex-1 px-2 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded text-white"
+                  className={inputClass}
                   value={String(r.warehouse || "")}
                   onChange={(e) => updateRow(idx, { warehouse: e.target.value })}
                 >
@@ -85,39 +143,54 @@ export default function SplitModal({ open, onClose, almacenes = [], draft, onSav
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="col-span-3">
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                  Cantidad
+                </label>
                 <input
-                  className="w-20 px-2 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded text-white text-right"
+                  className={`${inputClass} text-right`}
                   type="number"
                   min="0"
                   value={Number(r.qty || 0)}
                   onChange={(e) => updateRow(idx, { qty: Number(e.target.value) })}
                 />
+              </div>
+
+              <div className="col-span-2 flex items-end">
                 <button
                   onClick={() => removeRow(idx)}
-                  className="px-2 py-1.5 text-sm text-slate-400 hover:text-red-400"
+                  className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm font-medium text-[#FA891A] transition-all hover:bg-orange-50 hover:border-[#FA891A]"
                 >
-                  ✕
+                  Quitar
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
 
-          <div className="flex justify-between pt-2">
-            <button
-              onClick={addRow}
-              className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded"
-            >
-              + Agregar almacén
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <button onClick={addRow} className={outlineOrangeButton}>
+            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Agregar almacén
+          </button>
+
+          <div className="flex flex-wrap gap-3">
+            <button onClick={handleClose} className={outlineOrangeButton}>
+              Cancelar
             </button>
-            <button
-              onClick={handleSave}
-              className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded"
-            >
+            <button onClick={handleSave} className={solidOrangeButton}>
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               Guardar
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }

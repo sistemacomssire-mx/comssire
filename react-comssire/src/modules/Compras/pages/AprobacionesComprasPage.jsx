@@ -426,40 +426,81 @@ export default function AprobacionesComprasPage() {
   return (
     <AppLayout>
       <Toaster position="top-right" richColors closeButton />
+      
+      <style>{`
+        /* Estilos personalizados para tema claro con naranja y azul */
+        .bg-naranja-claro {
+          background-color: #FFF7F0;
+        }
+        .border-naranja-suave {
+          border-color: #FFE4CC;
+        }
+        .text-naranja-principal {
+          color: #F97316;
+        }
+        .bg-naranja-principal {
+          background-color: #F97316;
+        }
+        .hover-bg-naranja-oscuro:hover {
+          background-color: #EA580C;
+        }
+        .bg-azul-claro {
+          background-color: #EFF6FF;
+        }
+        .border-azul-suave {
+          border-color: #DBEAFE;
+        }
+        .text-azul-principal {
+          color: #3B82F6;
+        }
+        .bg-azul-principal {
+          background-color: #3B82F6;
+        }
+        .hover-bg-azul-oscuro:hover {
+          background-color: #2563EB;
+        }
+        .sombra-suave {
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
 
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto bg-gray-50 min-h-screen p-4">
         {/* Selector de aprobaciones horizontal */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold">Aprobaciones pendientes</h2>
-            <button className="btn btn-glass text-xs px-3 py-1.5" onClick={loadAprobaciones} disabled={loading}>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-bold text-gray-800">Aprobaciones pendientes</h2>
+            <button 
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm" 
+              onClick={loadAprobaciones} 
+              disabled={loading}
+            >
               Recargar
             </button>
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-3">
             {aprobaciones.map((c) => (
               <button
                 key={c.id}
-                className={`px-3 py-2 rounded-lg border min-w-[180px] text-left ${
+                className={`px-4 py-3 rounded-xl border transition-all flex-shrink-0 w-48 text-left ${
                   selectedId === c.id
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-white/10 hover:bg-white/5"
+                    ? "border-orange-400 bg-orange-50 shadow-md ring-2 ring-orange-200"
+                    : "border-gray-200 bg-white hover:bg-gray-50 hover:border-orange-200 shadow-sm"
                 }`}
                 onClick={() => loadSelectedCompra(c.id)}
               >
-                <div className="font-bold text-sm">{c.folioFactura}</div>
-                <div className="text-[10px] text-white/60 mt-0.5">
+                <div className="font-bold text-gray-800 text-sm truncate">{c.folioFactura}</div>
+                <div className="text-xs text-gray-500 mt-1">
                   {c.enviadoAt ? new Date(c.enviadoAt).toLocaleDateString("es-MX") : ""}
                 </div>
-                <div className="text-[10px] text-white/60 mt-0.5">
+                <div className="text-xs text-gray-500 mt-0.5 truncate">
                   {c.cveClpv}
                 </div>
               </button>
             ))}
             
             {!aprobaciones.length && !loading && (
-              <div className="text-xs text-white/60 py-3 px-4 border border-white/10 rounded-lg">
+              <div className="text-sm text-gray-500 py-3 px-4 border border-gray-200 rounded-xl bg-white">
                 No hay compras enviadas
               </div>
             )}
@@ -469,69 +510,71 @@ export default function AprobacionesComprasPage() {
         {selectedId && (
           <>
             {/* HEADER COMPACTO */}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
-              <div className="flex items-center gap-2 flex-wrap text-xs">
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-white/50">Folio:</span>
-                  <span className="font-mono font-bold text-white/90 text-xs">{folioFactura || "Sin folio"}</span>
+            <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Folio:</span>
+                    <span className="font-mono font-semibold text-gray-800 text-sm">{folioFactura || "Sin folio"}</span>
+                  </div>
+                  
+                  <div className="w-px h-4 bg-gray-200"></div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Fecha:</span>
+                    <span className="text-sm text-gray-700">{fecha}</span>
+                  </div>
+                  
+                  <div className="w-px h-4 bg-gray-200"></div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Estatus:</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      compraEstado === "Aprobada" ? "bg-green-100 text-green-700" :
+                      compraEstado === "Rechazada" ? "bg-red-100 text-red-700" :
+                      "bg-orange-100 text-orange-700"
+                    }`}>
+                      {compraEstado || "Enviada"}
+                    </span>
+                  </div>
                 </div>
-                
-                <span className="text-white/30">|</span>
-                
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-white/50">Fecha:</span>
-                  <span className="text-xs">{fecha}</span>
-                </div>
-                
-                <span className="text-white/30">|</span>
-                
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-white/50">Estatus:</span>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                    compraEstado === "Aprobada" ? "bg-green-500/20 text-green-300" :
-                    compraEstado === "Rechazada" ? "bg-red-500/20 text-red-300" :
-                    "bg-yellow-500/20 text-yellow-300"
-                  }`}>
-                    {compraEstado || "Enviada"}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  className="btn btn-glass text-[10px] px-2 py-1"
-                  onClick={handleGuardarCambios}
-                  disabled={!selectedId || saving}
-                >
-                  Guardar
-                </button>
-                <button
-                  className="btn btn-glass text-[10px] px-2 py-1"
-                  onClick={() => setDevolverOpen(true)}
-                  disabled={!selectedId || saving}
-                >
-                  Devolver
-                </button>
-                <button
-                  className="btn btn-primary text-[10px] px-3 py-1"
-                  onClick={handleAprobar}
-                  disabled={!selectedId || saving}
-                >
-                  Aprobar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-xs font-medium"
+                    onClick={handleGuardarCambios}
+                    disabled={!selectedId || saving}
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-xs font-medium"
+                    onClick={() => setDevolverOpen(true)}
+                    disabled={!selectedId || saving}
+                  >
+                    Devolver
+                  </button>
+                  <button
+                    className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-xs font-medium shadow-sm"
+                    onClick={handleAprobar}
+                    disabled={!selectedId || saving}
+                  >
+                    Aprobar
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* MITAD Y MITAD */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* LADO IZQUIERDO: Factura */}
               <div className="w-full">
-                <div className="bg-black/20 rounded-lg border border-white/10 overflow-hidden flex flex-col h-[calc(100vh-180px)] sticky top-4">
-                  <div className="p-2 border-b border-white/10 bg-white/5 flex-shrink-0 flex justify-between items-center">
-                    <h3 className="font-bold text-sm">FACTURA</h3>
-                    <span className="text-[10px] text-white/50">Zoom • Arrastrar</span>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)] sticky top-4">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0 flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-800">FACTURA</h3>
+                    <span className="text-xs text-gray-500">Zoom • Arrastrar</span>
                   </div>
-                  <div className="flex-1 bg-black/40 overflow-hidden">
+                  <div className="flex-1 bg-gray-50 overflow-hidden">
                     {facturaInfo ? (
                       facturaInfo.viewUrl && isImageContentType(facturaInfo.contentType) ? (
                         <TransformWrapper
@@ -545,22 +588,22 @@ export default function AprobacionesComprasPage() {
                         >
                           {({ zoomIn, zoomOut, resetTransform }) => (
                             <>
-                              <div className="absolute bottom-2 right-2 z-10 flex gap-1">
+                              <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                                 <button
                                   onClick={() => zoomIn()}
-                                  className="btn btn-glass bg-black/50 backdrop-blur-sm text-[10px] px-2 py-1"
+                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   +
                                 </button>
                                 <button
                                   onClick={() => zoomOut()}
-                                  className="btn btn-glass bg-black/50 backdrop-blur-sm text-[10px] px-2 py-1"
+                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   -
                                 </button>
                                 <button
                                   onClick={() => resetTransform()}
-                                  className="btn btn-glass bg-black/50 backdrop-blur-sm text-[10px] px-2 py-1"
+                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   ↺
                                 </button>
@@ -594,26 +637,26 @@ export default function AprobacionesComprasPage() {
                           )}
                         </TransformWrapper>
                       ) : facturaInfo.viewUrl ? (
-                        <div className="h-full flex items-center justify-center text-center p-4">
+                        <div className="h-full flex items-center justify-center text-center p-6">
                           <div>
-                            <div className="mb-2 text-white/70 text-xs">No se puede previsualizar</div>
+                            <div className="mb-3 text-gray-500 text-sm">No se puede previsualizar</div>
                             <a
                               href={facturaInfo.viewUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="btn btn-primary text-xs px-3 py-1.5"
+                              className="inline-block px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
                             >
                               Abrir archivo
                             </a>
                           </div>
                         </div>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-white/60 p-4 text-center text-xs">
+                        <div className="h-full flex items-center justify-center text-gray-400 p-6 text-center text-sm">
                           Sin URL disponible
                         </div>
                       )
                     ) : (
-                      <div className="h-full flex items-center justify-center text-white/60 p-4 text-center text-xs">
+                      <div className="h-full flex items-center justify-center text-gray-400 p-6 text-center text-sm">
                         Sin factura adjunta
                       </div>
                     )}
@@ -622,10 +665,10 @@ export default function AprobacionesComprasPage() {
               </div>
 
               {/* LADO DERECHO: Formulario */}
-              <div className="w-full space-y-3 pb-3 overflow-y-auto" style={{ height: 'calc(100vh - 180px)' }}>
+              <div className="w-full space-y-4 pb-4 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
                 {/* Formulario de cabecera - COMPACTO */}
-                <div className="bg-black/20 rounded-lg border border-white/10 p-3">
-                  <h3 className="font-bold text-sm mb-2">DATOS DE LA COMPRA</h3>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <h3 className="font-semibold text-gray-800 mb-3">DATOS DE LA COMPRA</h3>
                   <OrderForm
                     readOnly={false}
                     loading={false}
@@ -645,8 +688,8 @@ export default function AprobacionesComprasPage() {
                 </div>
 
                 {/* Líneas - COMPACTO */}
-                <div className="bg-black/20 rounded-lg border border-white/10 p-3">
-                  <h3 className="font-bold text-sm mb-2">PARTIDAS</h3>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <h3 className="font-semibold text-gray-800 mb-3">PARTIDAS</h3>
                   <LinesSection
                     readOnly={false}
                     saving={saving}
@@ -673,43 +716,43 @@ export default function AprobacionesComprasPage() {
                 </div>
 
                 {/* Totales - COMPACTO */}
-                <div className="bg-black/20 rounded-lg border border-white/10 p-3">
-                  <div className="flex flex-wrap gap-3 mb-2">
-                    <div className="bg-white/5 rounded px-3 py-1.5">
-                      <span className="text-white/60 text-[10px]">Partidas: </span>
-                      <span className="font-bold text-sm">{totals.items}</span>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-500 text-xs">Partidas: </span>
+                      <span className="font-bold text-gray-800 text-sm">{totals.items}</span>
                     </div>
-                    <div className="bg-white/5 rounded px-3 py-1.5">
-                      <span className="text-white/60 text-[10px]">Subtotal: </span>
-                      <span className="font-bold text-sm">{money(totals.subtotal)}</span>
+                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-500 text-xs">Subtotal: </span>
+                      <span className="font-bold text-gray-800 text-sm">{money(totals.subtotal)}</span>
                     </div>
-                    <div className="bg-white/5 rounded px-3 py-1.5">
-                      <span className="text-white/60 text-[10px]">IVA: </span>
-                      <span className="font-bold text-sm">{money(totals.iva)}</span>
+                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-500 text-xs">IVA: </span>
+                      <span className="font-bold text-gray-800 text-sm">{money(totals.iva)}</span>
                     </div>
-                    <div className="bg-white/5 rounded px-3 py-1.5">
-                      <span className="text-white/60 text-[10px]">Total: </span>
-                      <span className="font-bold text-sm">{money(totals.total)}</span>
+                    <div className="bg-orange-50 rounded-lg px-3 py-2 border border-orange-200">
+                      <span className="text-orange-600 text-xs">Total: </span>
+                      <span className="font-bold text-orange-600 text-sm">{money(totals.total)}</span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-3 justify-end">
                     <button
-                      className="btn btn-glass text-xs px-3 py-1.5"
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
                       onClick={handleGuardarCambios}
                       disabled={!selectedId || saving}
                     >
                       Guardar
                     </button>
                     <button
-                      className="btn btn-glass text-xs px-3 py-1.5"
+                      className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
                       onClick={() => setDevolverOpen(true)}
                       disabled={!selectedId || saving}
                     >
                       Devolver
                     </button>
                     <button
-                      className="btn btn-primary text-xs px-4 py-1.5"
+                      className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
                       onClick={handleAprobar}
                       disabled={!selectedId || saving}
                     >
@@ -725,29 +768,30 @@ export default function AprobacionesComprasPage() {
 
       {/* Modal de devolución */}
       {devolverOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
-          <div className="bg-black/80 rounded-lg border border-white/10 w-full max-w-lg p-3">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-bold text-sm">Devolver compra</div>
-              <button className="btn btn-glass text-xs px-2 py-1" onClick={() => setDevolverOpen(false)}>
-                Cerrar
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold text-gray-800">Devolver compra</div>
+              <button className="text-gray-400 hover:text-gray-600 text-sm px-2 py-1" onClick={() => setDevolverOpen(false)}>
+                ✕
               </button>
             </div>
-            <div className="mb-3">
-              <label className="text-xs text-white/80 mb-1 block">Motivo</label>
+            <div className="mb-4">
+              <label className="text-sm text-gray-700 mb-2 block font-medium">Motivo</label>
               <textarea
-                className="bg-black/30 border border-white/10 rounded w-full min-h-[80px] text-xs p-2"
+                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                rows="4"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Escribe el motivo para devolver..."
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <button className="btn btn-glass text-xs px-3 py-1.5" onClick={() => setDevolverOpen(false)}>
+            <div className="flex justify-end gap-3">
+              <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm" onClick={() => setDevolverOpen(false)}>
                 Cancelar
               </button>
-              <button className="btn btn-primary text-xs px-3 py-1.5" onClick={handleDevolver} disabled={saving}>
-                {saving ? "..." : "Devolver"}
+              <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium" onClick={handleDevolver} disabled={saving}>
+                {saving ? "Procesando..." : "Devolver"}
               </button>
             </div>
           </div>

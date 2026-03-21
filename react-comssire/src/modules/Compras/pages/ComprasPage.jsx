@@ -1139,6 +1139,7 @@ const handleAdminSaveDraft = async () => {
   };
 
    // ========== RENDER ==========
+// ========== RENDER ==========
 return (
   <AppLayout
     topbar={
@@ -1162,9 +1163,9 @@ return (
         />
       </div>
 
-      {/* Grid principal - CON ANCHO COMPLETO */}
+      {/* Grid principal */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 w-full min-h-0">
-        {/* Columna izquierda - 8 columnas */}
+        {/* Columna izquierda */}
         <div className="lg:col-span-8 space-y-4 overflow-y-auto pr-2 w-full">
           <OrderForm
             readOnly={false}
@@ -1185,44 +1186,61 @@ return (
 
           {/* Factura para no admin */}
           {!isAdmin && (
-            <div className="bg-slate-800/30 rounded p-3 w-full">
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
               <div className="flex items-center gap-3 flex-wrap">
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleFacturaChange}
-                  className="flex-1 min-w-[200px] text-sm text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-slate-700 file:text-white hover:file:bg-slate-600"
+                  className="flex-1 min-w-[200px] text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
                 />
                 <button
                   onClick={handleUploadFactura}
                   disabled={subiendoFactura}
-                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded whitespace-nowrap"
+                  className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg whitespace-nowrap"
                 >
                   {subiendoFactura ? "Subiendo..." : "Subir"}
                 </button>
                 
                 {facturaInfo && (
                   <>
-                    <a href={facturaInfo.viewUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded whitespace-nowrap">
+                    <a
+                      href={facturaInfo.viewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg whitespace-nowrap"
+                    >
                       Ver
                     </a>
-                    <button onClick={handleDeleteFactura} className="px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded whitespace-nowrap">
+                    <button
+                      onClick={handleDeleteFactura}
+                      className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg whitespace-nowrap"
+                    >
                       Eliminar
                     </button>
                   </>
                 )}
               </div>
               {facturaPreview && (
-                <img src={facturaPreview} alt="Vista previa" className="mt-2 h-20 rounded border border-slate-700" />
+                <img
+                  src={facturaPreview}
+                  alt="Vista previa"
+                  className="mt-3 h-20 rounded-lg border border-gray-200"
+                />
               )}
             </div>
           )}
 
           {/* Factura para admin */}
           {isAdmin && facturaInfo?.viewUrl && (
-            <div className="bg-slate-800/30 rounded p-3 flex items-center justify-between w-full">
-              <span className="text-sm text-slate-400">Factura adjunta</span>
-              <a href={facturaInfo.viewUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded">
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+              <span className="text-sm text-gray-500">Factura adjunta</span>
+              <a
+                href={facturaInfo.viewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg"
+              >
                 Ver factura
               </a>
             </div>
@@ -1257,9 +1275,9 @@ return (
           />
         </div>
 
-        {/* Columna derecha - 4 columnas */}
+        {/* Columna derecha */}
         <div className="lg:col-span-4">
-          <div className="sticky top-0 space-y-4">
+          <div className="sticky top-4 space-y-4">
             <RigthCards
               isAdmin={isAdmin}
               saving={saving}
