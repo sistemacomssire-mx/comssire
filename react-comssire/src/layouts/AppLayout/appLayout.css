@@ -244,7 +244,7 @@ html,
 [class*="PageContent"],
 [class*="container"],
 [class*="Container"] {
-  background-color: #ffffff !important;
+  background-color: #f8fafc !important;
 }
 
 /* Mantener transparencia donde corresponde */
