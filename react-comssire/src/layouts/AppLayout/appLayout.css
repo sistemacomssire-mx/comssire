@@ -6,7 +6,7 @@
   position: relative;
   width: 100%;
   min-width: 0;
-  background: #BFC6C4; /* Cambiado a #BFC6C4 */
+  background: #F3F4F4; /* Cambiado a #F3F4F4 */
 }
 
 /* Sidebar principal */
@@ -96,7 +96,7 @@
   height: 100vh;
   overflow: hidden;
   width: auto;
-  background: #BFC6C4 !important; /* Fondo #BFC6C4 */
+  background: #F3F4F4 !important; /* Fondo #F3F4F4 */
 }
 
 /* Scroll area - Este es el contenedor donde se renderiza el contenido de las páginas */
@@ -108,7 +108,7 @@
   -webkit-overflow-scrolling: touch;
   padding: 1.2rem;
   width: 100%;
-  background: #BFC6C4 !important; /* Fondo #BFC6C4 */
+  background: #F3F4F4 !important; /* Fondo #F3F4F4 */
 }
 
 /* Backdrop para móvil */
@@ -214,7 +214,7 @@ nav[class*="Navbar"],
 :root {
   --sidebar-bg: #296374;
   --topbar-bg: #296374;
-  --page-bg: #BFC6C4; /* Color de fondo de las páginas */
+  --page-bg: #F3F4F4; /* Color de fondo de las páginas */
 }
 
 /* Override final y más agresivo */
@@ -244,7 +244,7 @@ html,
 [class*="PageContent"],
 [class*="container"],
 [class*="Container"] {
-  background-color: #BFC6C4 !important;
+  background-color: #F3F4F4 !important;
 }
 
 /* Mantener transparencia donde corresponde */
@@ -284,7 +284,7 @@ html,
   color: white;
 }
 
-/* Estilos adicionales para mejorar la legibilidad del contenido sobre fondo #BFC6C4 */
+/* Estilos adicionales para mejorar la legibilidad del contenido sobre fondo #F3F4F4 */
 .app-scroll .bg-white,
 .app-scroll [class*="bg-white"] {
   background-color: white !important;
