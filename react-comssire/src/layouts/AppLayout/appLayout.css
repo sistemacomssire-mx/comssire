@@ -6,12 +6,13 @@
   position: relative;
   width: 100%;
   min-width: 0;
-  background: transparent;
+  background: #f5f5f5; /* Fondo claro para el contenido */
 }
 
+/* Sidebar principal */
 .app-sidebar {
   height: 100vh;
-  background: #0d1b2a;
+  background: #296364 !important; /* Forzado */
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   transition: width 0.28s ease;
   overflow: hidden;
@@ -29,14 +30,67 @@
   border-right: 0;
 }
 
+/* Contenido del sidebar */
 .sidebar-content {
   width: 17rem;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  background: #296364 !important; /* Forzado */
 }
 
+/* Todos los elementos dentro del sidebar */
+.sidebar-content *,
+.app-sidebar * {
+  /* No forzamos todos los elementos para no romper hover states */
+}
+
+/* Elementos del menú */
+.sidebar-content nav,
+.sidebar-content ul,
+.sidebar-content li,
+.sidebar-content .menu-item,
+.sidebar-content .nav-item {
+  background: transparent;
+}
+
+/* Links y botones del menú */
+.sidebar-content a,
+.sidebar-content button,
+.app-sidebar a,
+.app-sidebar button {
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+/* Hover states */
+.sidebar-content a:hover,
+.sidebar-content button:hover,
+.app-sidebar a:hover,
+.app-sidebar button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Active state */
+.sidebar-content .active,
+.sidebar-content [class*="active"],
+.app-sidebar .active,
+.app-sidebar [class*="active"] {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Topbar */
+.app-topbar {
+  flex-shrink: 0;
+  z-index: 40;
+  width: 100%;
+  background: #296364 !important; /* Forzado */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+/* Main content area */
 .app-main {
   flex: 1 1 auto;
   min-width: 0;
@@ -45,18 +99,10 @@
   height: 100vh;
   overflow: hidden;
   width: auto;
-  background: transparent;
+  background: #f5f5f5; /* Fondo claro para el contenido */
 }
 
-.app-topbar {
-  flex-shrink: 0;
-  z-index: 40;
-  width: 100%;
-  background: #0d1b2a;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
-}
-
+/* Scroll area */
 .app-scroll {
   flex: 1 1 auto;
   min-width: 0;
@@ -65,12 +111,14 @@
   -webkit-overflow-scrolling: touch;
   padding: 1.2rem;
   width: 100%;
+  background: #f5f5f5; /* Fondo claro */
 }
 
+/* Backdrop para móvil */
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(7, 15, 26, 0.56);
+  background: rgba(0, 0, 0, 0.56);
   opacity: 0;
   pointer-events: none;
   transition: opacity 200ms ease;
@@ -83,6 +131,7 @@
   pointer-events: auto;
 }
 
+/* Drawer para móvil */
 .sidebar-drawer {
   position: fixed;
   top: 0;
@@ -90,19 +139,25 @@
   width: 18rem;
   max-width: 86vw;
   height: 100vh;
-  background: #0d1b2a;
+  background: #296364 !important; /* Forzado */
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   transform: translateX(-100%);
   transition: transform 250ms ease;
   z-index: 70;
   overflow-y: auto;
-  box-shadow: 0 20px 50px rgba(13, 27, 42, 0.28);
+  box-shadow: 0 20px 50px rgba(41, 99, 100, 0.28);
 }
 
 .sidebar-drawer.is-open {
   transform: translateX(0);
 }
 
+/* Contenido del drawer */
+.sidebar-drawer .sidebar-content {
+  background: #296364 !important;
+}
+
+/* Responsive */
 @media (max-width: 767px) {
   .app-sidebar {
     display: none;
@@ -113,6 +168,7 @@
   }
 }
 
+/* Scrollbars */
 .app-scroll::-webkit-scrollbar,
 .sidebar-content::-webkit-scrollbar {
   width: 8px;
@@ -121,23 +177,44 @@
 
 .app-scroll::-webkit-scrollbar-track,
 .sidebar-content::-webkit-scrollbar-track {
-  background: rgba(203, 213, 225, 0.45);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 999px;
 }
 
 .app-scroll::-webkit-scrollbar-thumb,
 .sidebar-content::-webkit-scrollbar-thumb {
-  background: rgba(120, 132, 150, 0.8);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 999px;
 }
 
 .app-scroll::-webkit-scrollbar-thumb:hover,
 .sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(98, 110, 129, 0.95);
+  background: rgba(255, 255, 255, 0.5);
 }
 
+/* Transiciones */
 .app-sidebar,
 .app-main,
 .app-topbar {
   transition: all 0.2s ease;
+}
+
+/* Forzar que el header del layout también tenga el color */
+header,
+[class*="Header"],
+[class*="header"] {
+  background: #296364 !important;
+}
+
+/* Si hay algún navbar específico */
+nav[class*="navbar"],
+nav[class*="Navbar"],
+.navbar {
+  background: #296364 !important;
+}
+
+/* Asegurar que el fondo del sidebar sea consistente */
+:root {
+  --sidebar-bg: #296364;
+  --topbar-bg: #296364;
 }
