@@ -14,6 +14,7 @@ import {
   TomaPage,
   TomasHistorialPage,
 } from "../modules/Inventarios";
+import { GestionHerramientasPage } from "../modules/Herramientas";
 
 export default function AppRouter() {
   return (
@@ -102,6 +103,16 @@ export default function AppRouter() {
           element={
             <RequireAuth>
               <TomaPage />
+            </RequireAuth>
+          }
+        />
+
+        {/* ✅ GESTIÓN DE HERRAMIENTAS */}
+        <Route
+          path="/herramientas"
+          element={
+            <RequireAuth>
+              <GestionHerramientasPage />
             </RequireAuth>
           }
         />

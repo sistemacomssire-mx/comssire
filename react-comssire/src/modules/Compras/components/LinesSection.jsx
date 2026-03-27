@@ -83,16 +83,28 @@ export default function LinesSection({
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState([]);
-  const [selectedGroupKey, setSelectedGroupKey] = useState("");
-  const [selectedCode, setSelectedCode] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showResults, setShowResults] = useState(false);
 
   const debounceRef = useRef(null);
+  const searchContainerRef = useRef(null);
 
   useEffect(() => {
     if (almacenHeader && !almacenLineaSel) {
       setAlmacenLineaSel?.(almacenHeader);
     }
   }, [almacenHeader, almacenLineaSel, setAlmacenLineaSel]);
+
+  // Cerrar resultados al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const safeMoney = (n) => {
     if (typeof money === "function") return money(n);
@@ -105,8 +117,8 @@ export default function LinesSection({
 
     if (!term) {
       setResults([]);
-      setSelectedGroupKey("");
-      setSelectedCode("");
+      setShowResults(false);
+      setSelectedProduct(null);
       return;
     }
 
@@ -120,70 +132,57 @@ export default function LinesSection({
         const res = await onSearchProducts(term);
         const arr = Array.isArray(res) ? res : [];
         setResults(arr);
-        setSelectedGroupKey("");
-        setSelectedCode("");
+        setShowResults(arr.length > 0);
+        setSelectedProduct(null);
       } catch (e) {
         console.error("[LinesSection] onSearchProducts error:", e);
         setResults([]);
+        setShowResults(false);
       } finally {
         setSearching(false);
       }
-    }, 250);
+    }, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [q, onSearchProducts]);
 
-  const groups = useMemo(() => {
-    const map = new Map();
+  const handleSelectProduct = (product) => {
+    const code = pickCode(product);
+    const descr = pickDescr(product);
+    const cost = pickCost(product);
 
-    for (const p of results || []) {
-      const code = pickCode(p);
-      if (!code) continue;
-
-      const descr = pickDescr(p);
-      const key = descr.toLowerCase();
-
-      if (!map.has(key)) map.set(key, { key, descr, items: [] });
-
-      map.get(key).items.push({
-        raw: p,
-        code,
-        descr,
-        cost: pickCost(p),
-      });
-    }
-
-    return Array.from(map.values()).sort((a, b) => a.descr.localeCompare(b.descr));
-  }, [results]);
-
-  const selectedGroup = useMemo(() => {
-    if (!selectedGroupKey) return null;
-    return groups.find((g) => g.key === selectedGroupKey) || null;
-  }, [groups, selectedGroupKey]);
-
-  const codesInGroup = useMemo(() => {
-    if (!selectedGroup) return [];
-    return [...selectedGroup.items].sort((a, b) => a.code.localeCompare(b.code));
-  }, [selectedGroup]);
-
-  const handlePickGroup = (key) => {
-    setSelectedGroupKey(key);
-    setSelectedCode("");
+    setSelectedProduct(product);
+    setPiezaCodigo?.(code);
+    setPiezaDesc?.(descr === "(Sin descripción)" ? "" : descr);
+    if (cost !== null) setPiezaPrecio?.(cost);
+    
+    // Mostrar el producto seleccionado en el input de búsqueda
+    setQ(descr === "(Sin descripción)" ? code : `${code} - ${descr}`);
+    setShowResults(false);
+    
+    // Ejecutar búsqueda de existencias automáticamente
+    Promise.resolve().then(() => onLookup?.());
   };
 
-  const handlePickCode = (code) => {
-    setSelectedCode(code);
-    const item = codesInGroup.find((x) => x.code === code);
-    if (!item) return;
-
-    setPiezaCodigo?.(item.code);
-    setPiezaDesc?.(item.descr === "(Sin descripción)" ? "" : item.descr);
-
-    if (item.cost !== null) setPiezaPrecio?.(item.cost);
-
-    Promise.resolve().then(() => onLookup?.());
+  const handleAddLineClick = () => {
+    if (!piezaCodigo) {
+      return;
+    }
+    
+    if (!piezaCant || piezaCant <= 0) {
+      return;
+    }
+    
+    // Llamar al callback de agregar línea
+    onAddLine?.();
+    
+    // Limpiar la búsqueda y los campos después de agregar
+    setQ("");
+    setResults([]);
+    setShowResults(false);
+    setSelectedProduct(null);
   };
 
   const handleWarehouseChange = (idx, value) => {
@@ -218,9 +217,6 @@ export default function LinesSection({
   const sectionCard =
     "compra-card";
 
-  const softButton =
-    "btn-soft-orange px-5 py-3 text-sm rounded-2xl transition-colors border font-semibold shadow-[0_8px_18px_rgba(250,137,26,0.08)]";
-
   const primaryButton =
     "w-full px-4 py-3 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-[0_10px_22px_rgba(250,137,26,0.18)]";
 
@@ -228,14 +224,16 @@ export default function LinesSection({
     <div className="space-y-5">
       {!hideAddForm && (
         <div className={`${sectionCard} p-5`}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 relative">
+          {/* Búsqueda automática */}
+          <div className="mb-5 relative" ref={searchContainerRef}>
+            <div className="relative">
               <input
                 className={`${inputClass} pl-11`}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar producto (clave/descripción)..."
+                placeholder="Buscar producto por clave o descripción..."
                 disabled={saving || readOnly}
+                onFocus={() => q && results.length > 0 && setShowResults(true)}
               />
               <svg
                 className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -252,94 +250,47 @@ export default function LinesSection({
               )}
             </div>
 
-            <button
-              onClick={onLookup}
-              disabled={saving || readOnly}
-              className={softButton}
-            >
-              Buscar
-            </button>
-          </div>
-
-          <div className="grid grid-cols-12 gap-4 mb-5">
-            <div className="col-span-5">
-              <select
-                className={inputClass}
-                value={selectedGroupKey}
-                onChange={(e) => handlePickGroup(e.target.value)}
-                disabled={saving || readOnly || !groups.length}
-              >
-                <option value="">Descripción (agrupada)</option>
-                {groups.map((g) => (
-                  <option key={g.key} value={g.key}>
-                    {g.descr} ({g.items.length})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-span-5">
-              <select
-                className={inputClass}
-                value={selectedCode}
-                onChange={(e) => handlePickCode(e.target.value)}
-                disabled={saving || readOnly || !selectedGroup}
-              >
-                <option value="">Clave (variante)</option>
-                {codesInGroup.map((x) => (
-                  <option key={x.code} value={x.code}>
-                    {x.code} {x.cost !== null && `- ${safeMoney(x.cost)}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-span-2">
-              <select
-                className={inputClass}
-                value={String(almacenLineaSel || "")}
-                onChange={(e) => setAlmacenLineaSel?.(e.target.value)}
-                disabled={saving || readOnly}
-              >
-                <option value="">Almacén</option>
-                {(almacenes || []).map((a) => {
-                  const value = pickWarehouseValue(a);
-                  const label = pickWarehouseLabel(a);
+            {/* Resultados de búsqueda */}
+            {showResults && results.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-80 overflow-y-auto">
+                {results.map((product, idx) => {
+                  const code = pickCode(product);
+                  const descr = pickDescr(product);
+                  const cost = pickCost(product);
                   return (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
+                    <button
+                      key={idx}
+                      onClick={() => handleSelectProduct(product)}
+                      className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors border-b border-slate-100 last:border-b-0"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-900 text-sm">
+                              {code}
+                            </span>
+                            <span className="text-xs text-slate-400">•</span>
+                            <span className="text-sm text-slate-700 truncate">
+                              {descr}
+                            </span>
+                          </div>
+                        </div>
+                        {cost !== null && (
+                          <span className="text-sm font-semibold text-orange-600 whitespace-nowrap">
+                            {safeMoney(cost)}
+                          </span>
+                        )}
+                      </div>
+                    </button>
                   );
                 })}
-              </select>
-            </div>
+              </div>
+            )}
           </div>
 
+          {/* Formulario de agregar partida - solo cantidad y costo */}
           <div className="grid grid-cols-12 gap-4 items-end">
-            <div className="col-span-3">
-              <label className="compra-label">Código</label>
-              <input
-                className={inputClass}
-                value={piezaCodigo}
-                onChange={(e) => setPiezaCodigo?.(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onLookup?.()}
-                placeholder="Código"
-                disabled={saving || readOnly}
-              />
-            </div>
-
-            <div className="col-span-3">
-              <label className="compra-label">Descripción</label>
-              <input
-                className={inputClass}
-                value={piezaDesc}
-                onChange={(e) => setPiezaDesc?.(e.target.value)}
-                placeholder="Descripción"
-                disabled={saving || readOnly}
-              />
-            </div>
-
-            <div className="col-span-2">
+            <div className="col-span-5">
               <label className="compra-label">Cantidad</label>
               <input
                 className={inputClass}
@@ -351,7 +302,7 @@ export default function LinesSection({
               />
             </div>
 
-            <div className="col-span-2">
+            <div className="col-span-5">
               <label className="compra-label">Costo</label>
               <input
                 className={inputClass}
@@ -365,8 +316,8 @@ export default function LinesSection({
 
             <div className="col-span-2">
               <button
-                onClick={onAddLine}
-                disabled={saving || readOnly}
+                onClick={handleAddLineClick}
+                disabled={saving || readOnly || !piezaCodigo}
                 className={primaryButton}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -447,7 +398,9 @@ export default function LinesSection({
                     className="transition-colors hover:bg-orange-50/40"
                   >
                     <td className="px-5 py-5 text-slate-900 font-semibold">{l.codigo}</td>
-                    <td className="px-5 py-5 text-slate-600 truncate max-w-[240px]">{l.desc}</td>
+                    <td className="px-5 py-5 text-slate-600 truncate max-w-[240px]">
+                      {l.desc || l.descripcion || "Sin descripción"}
+                    </td>
                     <td className="px-5 py-5">
                       <select
                         className="w-40 px-3 py-2.5 text-sm bg-white border-[1.6px] border-slate-300 rounded-2xl text-slate-900 outline-none transition shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)] focus:ring-4 focus:ring-orange-500/10 focus:border-orange-400"

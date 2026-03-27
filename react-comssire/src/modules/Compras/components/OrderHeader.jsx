@@ -1,4 +1,4 @@
-export default function OrderHeader({ folio, fecha, status = "Nueva" }) {
+export default function OrderHeader({ folio, fecha, status = "Nueva", partidasCount = 0 }) {
   const getStatusColor = () => {
     switch (status) {
       case "Borrador":
@@ -16,11 +16,28 @@ export default function OrderHeader({ folio, fecha, status = "Nueva" }) {
     }
   };
 
+  const getStatusText = () => {
+    const statusLower = String(status).toLowerCase();
+    const statusMap = {
+      "1": "Borrador",
+      "2": "Enviada",
+      "3": "Aprobada",
+      "4": "Rechazada",
+      "5": "Exportada",
+      "borrador": "Borrador",
+      "enviada": "Enviada",
+      "aprobada": "Aprobada",
+      "rechazada": "Rechazada",
+      "exportada": "Exportada"
+    };
+    return statusMap[statusLower] || status;
+  };
+
   const cardClass =
     "compra-card p-5";
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-4 gap-4">
       <div className={cardClass}>
         <div className="text-[0.95rem] font-semibold text-slate-500">Folio</div>
         <div className="text-[1.05rem] md:text-[1.15rem] font-semibold text-slate-900 truncate mt-3">
@@ -40,8 +57,15 @@ export default function OrderHeader({ folio, fecha, status = "Nueva" }) {
         <div className="flex items-center gap-3">
           <span className={`w-2.5 h-2.5 rounded-full ${status === "Borrador" ? "bg-slate-500" : "bg-orange-500"}`} />
           <span className={`text-sm font-semibold px-3 py-1.5 rounded-full border ${getStatusColor()}`}>
-            {status}
+            {getStatusText()}
           </span>
+        </div>
+      </div>
+
+      <div className={cardClass}>
+        <div className="text-[0.95rem] font-semibold text-slate-500">Partidas</div>
+        <div className="text-[1.05rem] md:text-[1.15rem] font-semibold text-slate-900 mt-3">
+          {partidasCount}
         </div>
       </div>
     </div>

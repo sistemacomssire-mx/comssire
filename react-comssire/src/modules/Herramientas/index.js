@@ -1,0 +1,1 @@
+export { default as GestionHerramientasPage } from "./pages/GestionHerramientasPage";

@@ -11,6 +11,7 @@ function getRouteMeta(pathname) {
     { test: (p) => p.startsWith("/inventario/tomas"), title: "Tomas físicas", subtitle: "Inventario" },
     { test: (p) => p.startsWith("/inventario"), title: "Inventario", subtitle: "Stock" },
     { test: (p) => p.startsWith("/usuarios"), title: "Usuarios", subtitle: "Gestión" },
+    { test: (p) => p.startsWith("/herramientas"), title: "Gestión de herramientas", subtitle: "Herramientas" },
     { test: (p) => p.startsWith("/cuenta/cambiar-password"), title: "Cuenta", subtitle: "Seguridad" },
     { test: (p) => p.startsWith("/home"), title: "Dashboard", subtitle: "Inicio" },
     { test: (p) => p === "/" || p === "", title: "Dashboard", subtitle: "Inicio" },

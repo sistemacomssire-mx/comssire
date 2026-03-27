@@ -154,6 +154,7 @@ export default function ComprasPage() {
     lines: (lines || []).map((l) => ({
       backendPartidaId: l.backendPartidaId || null,
       codigo: l.codigo || "",
+      desc: l.desc || "",
       cant: Number(l.cant || 0),
       precio: Number(l.precio || 0),
       warehouse: String(l.warehouse || ""),
@@ -293,16 +294,13 @@ export default function ComprasPage() {
   // ========== OPERACIONES CON MANEJO DE CONFLICTOS ==========
   const executeWithConflictHandler = async (operation, action, ...args) => {
     try {
-      // Si estamos en modo forzado o es exportada, intentar con force=true primero
       if (shouldForceExportada || forceMode) {
         setForceMode(true);
         return await operation(...args, true);
       }
       
-      // Intentar sin force
       return await operation(...args, false);
     } catch (error) {
-      // Si es un error de conflicto (409) y requiere force
       if (error?.isConflict && error?.requireForce) {
         const confirmed = await confirmToast(
           error.message || "Esta compra ya fue exportada. ¿Deseas forzar la actualización?",
@@ -311,15 +309,12 @@ export default function ComprasPage() {
 
         if (confirmed) {
           setForceMode(true);
-          // Reintentar con force=true
           return await operation(...args, true);
         }
         
-        // Usuario canceló
         throw new Error("Operación cancelada por el usuario");
       }
       
-      // Otro tipo de error
       throw error;
     }
   };
@@ -387,6 +382,9 @@ export default function ComprasPage() {
       const codigo = String(p?.cveArt ?? p?.CveArt ?? "").trim();
       const cant = Number(p?.cantTotal ?? p?.CantTotal ?? 0);
       const precio = Number(p?.costoUnitario ?? p?.CostoUnitario ?? 0);
+      
+      // Obtener la descripción del producto
+      const descripcion = p?.descripcion ?? p?.Descripcion ?? p?.producto?.descripcion ?? p?.producto?.Descripcion ?? "";
 
       const rep = p?.repartos ?? p?.Repartos ?? [];
       const repArr = Array.isArray(rep) ? rep : [];
@@ -396,14 +394,13 @@ export default function ComprasPage() {
       return {
         backendPartidaId: partidaId,
         codigo,
-        desc: "",
+        desc: descripcion,
         cant,
         precio,
         warehouse: String(wh ?? ""),
       };
     });
   };
-
 
   const loadFactura = async (id) => {
     if (!id) {
@@ -550,7 +547,6 @@ export default function ComprasPage() {
   // ========== ACTUALIZAR ALMACÉN DIRECTAMENTE EN BD ==========
   const handleUpdateWarehouseDirect = async (partidaId, nuevoAlmacen, lineIndex) => {
     if (!compraId || !partidaId) {
-      // Si no hay compra en BD, solo actualizar localmente
       handleChangeLineWarehouse(lineIndex, nuevoAlmacen);
       return;
     }
@@ -560,11 +556,9 @@ export default function ComprasPage() {
     try {
       setSaving(true);
       
-      // Buscar la línea completa para obtener los datos necesarios
       const lineToUpdate = lines[lineIndex];
       if (!lineToUpdate) return;
 
-      // Construir payload con los datos actuales + nuevo almacén
       const payload = buildPartidaPayload({
         codigo: lineToUpdate.codigo,
         cant: lineToUpdate.cant,
@@ -572,7 +566,6 @@ export default function ComprasPage() {
         warehouse: nuevoAlmacen,
       });
 
-      // Actualizar en BD
       await executeWithConflictHandler(
         updateCompraPartida,
         "actualizar almacén",
@@ -581,7 +574,6 @@ export default function ComprasPage() {
         payload
       );
 
-      // Actualizar estado local
       handleChangeLineWarehouse(lineIndex, nuevoAlmacen);
 
       toast.success("Almacén actualizado en BD", { id: t });
@@ -806,6 +798,8 @@ export default function ComprasPage() {
         return;
       }
 
+      const descripcionSplit = splitDraft.desc || "";
+
       for (const r of clean) {
         const payload = buildPartidaPayload({
           codigo: splitDraft.codigo,
@@ -830,7 +824,17 @@ export default function ComprasPage() {
             compraEstado
         )
       );
-      setLines(remapCompraToLines(compraActualizada, almacenSel));
+      
+      const nuevasLineas = remapCompraToLines(compraActualizada, almacenSel);
+      
+      const lineasConDesc = nuevasLineas.map(line => {
+        if (line.codigo === splitDraft.codigo && !line.desc) {
+          return { ...line, desc: descripcionSplit };
+        }
+        return line;
+      });
+      
+      setLines(lineasConDesc);
 
       setPiezaCodigo("");
       setPiezaDesc("");
@@ -874,6 +878,8 @@ export default function ComprasPage() {
       return toast.error("Cantidad inválida.");
     }
 
+    const descripcionActual = String(piezaDesc || "").trim();
+
     if (cant >= 2) {
       const ok = await confirmToast(
         `Vas a agregar cantidad ${cant}. ¿Quieres repartir a varios almacenes?`,
@@ -883,7 +889,7 @@ export default function ComprasPage() {
       if (ok) {
         openSplit({
           codigo,
-          desc: String(piezaDesc || ""),
+          desc: descripcionActual,
           cantTotal: cant,
           precio: Number(piezaPrecio || 0),
           defaultWarehouse: String(almacenLineaSel || almacenSel || ""),
@@ -920,7 +926,17 @@ export default function ComprasPage() {
             compraEstado
         )
       );
-      setLines(remapCompraToLines(compraActualizada, almacenSel));
+      
+      const nuevasLineas = remapCompraToLines(compraActualizada, almacenSel);
+      
+      const lineasConDesc = nuevasLineas.map(line => {
+        if (line.codigo === codigo && !line.desc) {
+          return { ...line, desc: descripcionActual };
+        }
+        return line;
+      });
+      
+      setLines(lineasConDesc);
 
       setPiezaCodigo("");
       setPiezaDesc("");
@@ -1085,48 +1101,46 @@ export default function ComprasPage() {
       setSaving(false);
     }
   };
-// ========== HANDLER PARA ADMIN: GUARDAR BORRADOR (sin MOD) ==========
-const handleAdminSaveDraft = async () => {
-  const t = toast.loading("Guardando borrador...");
 
-  try {
-    setSaving(true);
-    const id = await ensureCompra();
+  const handleAdminSaveDraft = async () => {
+    const t = toast.loading("Guardando borrador...");
 
-    await executeWithConflictHandler(
-      saveCompraHeader,
-      "guardar borrador",
-      id,
-      buildCompraPayload()
-    );
+    try {
+      setSaving(true);
+      const id = await ensureCompra();
 
-    window.__COMSSIRE_DIRTY = false;
-    markSaved();
+      await executeWithConflictHandler(
+        saveCompraHeader,
+        "guardar borrador",
+        id,
+        buildCompraPayload()
+      );
 
-    toast.success("Borrador guardado.", { id: t });
-  } catch (e) {
-    if (e.message === "Operación cancelada por el usuario") {
-      toast.dismiss(t);
-      return;
+      window.__COMSSIRE_DIRTY = false;
+      markSaved();
+
+      toast.success("Borrador guardado.", { id: t });
+    } catch (e) {
+      if (e.message === "Operación cancelada por el usuario") {
+        toast.dismiss(t);
+        return;
+      }
+      
+      console.error("[COMPRAS] admin guardar borrador error", getNiceError(e));
+      toast.error(
+        e?.response?.parsedData?.message || e?.message || "No se pudo guardar el borrador.",
+        { id: t }
+      );
+    } finally {
+      setSaving(false);
     }
-    
-    console.error("[COMPRAS] admin guardar borrador error", getNiceError(e));
-    toast.error(
-      e?.response?.parsedData?.message || e?.message || "No se pudo guardar el borrador.",
-      { id: t }
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+  };
+  
   function handleChangeLineWarehouse(idx, newWarehouse) {
-    console.log("🔄 handleChangeLineWarehouse llamado:", { idx, newWarehouse });
-    
     setLines((prev) => {
       const newLines = prev.map((x, i) =>
         i === idx ? { ...x, warehouse: String(newWarehouse) } : x
       );
-      console.log("✅ Líneas actualizadas:", newLines);
       return newLines;
     });
     
@@ -1138,171 +1152,169 @@ const handleAdminSaveDraft = async () => {
     return Array.isArray(res) ? res : [];
   };
 
-   // ========== RENDER ==========
-// ========== RENDER ==========
-return (
-  <AppLayout
-    topbar={
-      <ComprasTopbar
-        hasActiveCompra={!!compraId}
-        statusText={compraEstado}
-        onNew={clearDraft}
-        onScan={() => {}}
-      />
-    }
-  >
-    <Toaster position="top-right" richColors closeButton />
-    
-    <div className="w-full h-full flex flex-col">
-      {/* Header */}
-      <div className="flex-shrink-0 mb-4 w-full">
-        <OrderHeader
-          folio={folioFactura}
-          fecha={fecha}
-          status={compraEstado}
+  // ========== RENDER ==========
+  return (
+    <AppLayout
+      topbar={
+        <ComprasTopbar
+          hasActiveCompra={!!compraId}
+          statusText={compraEstado}
+          onNew={clearDraft}
+          onScan={() => {}}
         />
-      </div>
-
-      {/* Grid principal */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 w-full min-h-0">
-        {/* Columna izquierda */}
-        <div className="lg:col-span-8 space-y-4 overflow-y-auto pr-2 w-full">
-          <OrderForm
-            readOnly={false}
-            loading={loadingCatalogos}
+      }
+    >
+      <Toaster position="top-right" richColors closeButton />
+      
+      <div className="w-full h-full flex flex-col">
+        {/* Header */}
+        <div className="flex-shrink-0 mb-4 w-full">
+          <OrderHeader
             folio={folioFactura}
-            setFolio={setFolioFactura}
             fecha={fecha}
-            setFecha={setFecha}
-            notas={observaciones}
-            setNotas={setObservaciones}
-            proveedores={proveedores}
-            proveedorSel={proveedorSel}
-            setProveedorSel={setProveedorSel}
-            almacenes={almacenes}
-            almacenSel={almacenSel}
-            setAlmacenSel={handleChangeAlmacen}
-          />
-
-          {/* Factura para no admin */}
-          {!isAdmin && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-              <div className="flex items-center gap-3 flex-wrap">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFacturaChange}
-                  className="flex-1 min-w-[200px] text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-                />
-                <button
-                  onClick={handleUploadFactura}
-                  disabled={subiendoFactura}
-                  className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg whitespace-nowrap"
-                >
-                  {subiendoFactura ? "Subiendo..." : "Subir"}
-                </button>
-                
-                {facturaInfo && (
-                  <>
-                    <a
-                      href={facturaInfo.viewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg whitespace-nowrap"
-                    >
-                      Ver
-                    </a>
-                    <button
-                      onClick={handleDeleteFactura}
-                      className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg whitespace-nowrap"
-                    >
-                      Eliminar
-                    </button>
-                  </>
-                )}
-              </div>
-              {facturaPreview && (
-                <img
-                  src={facturaPreview}
-                  alt="Vista previa"
-                  className="mt-3 h-20 rounded-lg border border-gray-200"
-                />
-              )}
-            </div>
-          )}
-
-          {/* Factura para admin */}
-          {isAdmin && facturaInfo?.viewUrl && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm flex items-center justify-between">
-              <span className="text-sm text-gray-500">Factura adjunta</span>
-              <a
-                href={facturaInfo.viewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg"
-              >
-                Ver factura
-              </a>
-            </div>
-          )}
-
-          {/* Líneas/Partidas */}
-          <LinesSection
-            readOnly={false}
-            saving={saving}
-            almacenes={almacenes}
-            almacenLineaSel={almacenLineaSel}
-            setAlmacenLineaSel={setAlmacenLineaSel}
-            piezaCodigo={piezaCodigo}
-            setPiezaCodigo={setPiezaCodigo}
-            piezaDesc={piezaDesc}
-            setPiezaDesc={setPiezaDesc}
-            piezaCant={piezaCant}
-            setPiezaCant={setPiezaCant}
-            piezaPrecio={piezaPrecio}
-            setPiezaPrecio={setPiezaPrecio}
-            onLookup={handleLookupProducto}
-            existencias={existencias}
-            onAddLine={handleAddLine}
-            lines={lines}
-            onRemoveLine={handleRemoveLine}
-            onChangeLineWarehouse={handleChangeLineWarehouse}
-            onUpdateWarehouseDirect={handleUpdateWarehouseDirect}
-            money={money}
-            onSearchProducts={handleSearchProducts}
-            onSyncWarehouses={handleSyncWarehouses}
-            almacenHeader={almacenSel}
+            status={compraEstado}
           />
         </div>
 
-        {/* Columna derecha */}
-        <div className="lg:col-span-4">
-          <div className="sticky top-4 space-y-4">
-            <RigthCards
-              isAdmin={isAdmin}
-              saving={saving}
-              compraEstado={compraEstado}
-              motivoRechazo={motivoRechazo}
-              totals={totals}
-              onSaveDraft={handleSaveHeader}
-              onSendApproval={handleEnviarAprobacion}
-              onAdminSaveDraft={handleAdminSaveDraft}
-              onAdminSaveAndDownloadMod={handleAdminSaveAndDownloadMod}
-              forceMode={forceMode}
+        {/* Grid principal */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 w-full min-h-0">
+          {/* Columna izquierda */}
+          <div className="lg:col-span-8 space-y-4 overflow-y-auto pr-2 w-full">
+            <OrderForm
+              readOnly={false}
+              loading={loadingCatalogos}
+              folio={folioFactura}
+              setFolio={setFolioFactura}
+              fecha={fecha}
+              setFecha={setFecha}
+              notas={observaciones}
+              setNotas={setObservaciones}
+              proveedores={proveedores}
+              proveedorSel={proveedorSel}
+              setProveedorSel={setProveedorSel}
+              almacenes={almacenes}
+              almacenSel={almacenSel}
+              setAlmacenSel={handleChangeAlmacen}
             />
+
+            {/* Factura para no admin */}
+            {!isAdmin && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFacturaChange}
+                    className="flex-1 min-w-[200px] text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                  <button
+                    onClick={handleUploadFactura}
+                    disabled={subiendoFactura}
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg whitespace-nowrap"
+                  >
+                    {subiendoFactura ? "Subiendo..." : "Subir"}
+                  </button>
+                  
+                  {facturaInfo && (
+                    <>
+                      <a
+                        href={facturaInfo.viewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg whitespace-nowrap"
+                      >
+                        Ver
+                      </a>
+                      <button
+                        onClick={handleDeleteFactura}
+                        className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg whitespace-nowrap"
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                </div>
+                {facturaPreview && (
+                  <img
+                    src={facturaPreview}
+                    alt="Vista previa"
+                    className="mt-3 h-20 rounded-lg border border-gray-200"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Factura para admin */}
+            {isAdmin && facturaInfo?.viewUrl && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                <span className="text-sm text-gray-500">Factura adjunta</span>
+                <a
+                  href={facturaInfo.viewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg"
+                >
+                  Ver factura
+                </a>
+              </div>
+            )}
+
+            {/* Líneas/Partidas */}
+            <LinesSection
+              readOnly={false}
+              saving={saving}
+              almacenes={almacenes}
+              almacenLineaSel={almacenLineaSel}
+              setAlmacenLineaSel={setAlmacenLineaSel}
+              piezaCodigo={piezaCodigo}
+              setPiezaCodigo={setPiezaCodigo}
+              piezaDesc={piezaDesc}
+              setPiezaDesc={setPiezaDesc}
+              piezaCant={piezaCant}
+              setPiezaCant={setPiezaCant}
+              piezaPrecio={piezaPrecio}
+              setPiezaPrecio={setPiezaPrecio}
+              onLookup={handleLookupProducto}
+              existencias={existencias}
+              onAddLine={handleAddLine}
+              lines={lines}
+              onRemoveLine={handleRemoveLine}
+              onChangeLineWarehouse={handleChangeLineWarehouse}
+              onUpdateWarehouseDirect={handleUpdateWarehouseDirect}
+              money={money}
+              onSearchProducts={handleSearchProducts}
+              onSyncWarehouses={handleSyncWarehouses}
+              almacenHeader={almacenSel}
+            />
+          </div>
+
+          {/* Columna derecha */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-4 space-y-4">
+              <RigthCards
+                isAdmin={isAdmin}
+                saving={saving}
+                compraEstado={compraEstado}
+                motivoRechazo={motivoRechazo}
+                totals={totals}
+                onSaveDraft={handleSaveHeader}
+                onSendApproval={handleEnviarAprobacion}
+                onAdminSaveDraft={handleAdminSaveDraft}
+                onAdminSaveAndDownloadMod={handleAdminSaveAndDownloadMod}
+                forceMode={forceMode}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <SplitModal
-      open={splitOpen}
-      onClose={closeSplit}
-      almacenes={almacenes}
-      draft={splitDraft}
-      onSave={handleSplitSave}
-    />
-  </AppLayout>
-);
-   
+      <SplitModal
+        open={splitOpen}
+        onClose={closeSplit}
+        almacenes={almacenes}
+        draft={splitDraft}
+        onSave={handleSplitSave}
+      />
+    </AppLayout>
+  );
 }

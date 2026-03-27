@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import logo from "../../../public/img/LogoComssire.png";
 import { authStorage } from "../../modules/Auth/store/auth.storage";
 import { toast } from "sonner";
@@ -7,29 +8,76 @@ import { toast } from "sonner";
 function ModalShell({ open, children }) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-[4px]">
-      <div className="w-full max-w-lg overflow-hidden rounded-[1.65rem] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
+  return createPortal(
+    <div 
+      style={{ 
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.15)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999999,
+        padding: "1rem"
+      }}
+    >
+      <div style={{ 
+        width: "100%",
+        maxWidth: "28rem",
+        backgroundColor: "#ffffff",
+        borderRadius: "1rem",
+        border: "3px solid #dc2626",
+        boxShadow: "0 25px 50px -12px rgba(220, 38, 38, 0.5)",
+        overflow: "hidden"
+      }}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
-function ModalHeader({ icon, title, description }) {
+
+function ModalHeader({ icon, title, description, variant = "warning" }) {
+  const getIconBgColor = () => {
+    switch (variant) {
+      case "danger":
+        return { backgroundColor: "#dc2626", color: "#ffffff", border: "2px solid #b91c1c" };
+      case "warning":
+        return { backgroundColor: "#f59e0b", color: "#ffffff", border: "2px solid #d97706" };
+      case "info":
+        return { backgroundColor: "#3b82f6", color: "#ffffff", border: "2px solid #2563eb" };
+      default:
+        return { backgroundColor: "#fa891a", color: "#ffffff", border: "2px solid #ea7607" };
+    }
+  };
+
+  const iconStyle = getIconBgColor();
+
   return (
-    <div className="px-6 pt-6 pb-4">
+    <div className="px-6 pt-6 pb-3">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-600">
+        <div 
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"
+          style={iconStyle}
+        >
           {icon}
         </div>
 
-        <div className="min-w-0">
-          {/* 🔥 FIX AQUÍ */}
-          <h3 className="text-[1.08rem] font-semibold leading-tight !text-[#1f3f63] !opacity-100">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-black uppercase tracking-wide" style={{ color: "#991b1b" }}>
             {title}
           </h3>
-
-          <p className="mt-1.5 text-sm leading-6 !text-[#5f7ea3] !opacity-100">
+          <p 
+            className="mt-2 text-sm font-semibold leading-relaxed p-3 rounded-lg"
+            style={{ 
+              backgroundColor: "transparent", 
+              color: "#991b1b", 
+              border: "1px solid #dc2626"
+            }}
+          >
             {description}
           </p>
         </div>
@@ -51,9 +99,23 @@ function SecondaryButton({ children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-w-[150px] items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold shadow-[0_6px_16px_rgba(15,23,42,0.05)] transition hover:border-slate-400 hover:bg-slate-50"
+      className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      style={{ 
+        backgroundColor: "transparent", 
+        color: "#fa891a", 
+        border: "2px solid #fa891a",
+        boxShadow: "none"
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "#fa891a";
+        e.currentTarget.style.color = "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.color = "#fa891a";
+      }}
     >
-      <span className="!text-slate-700">{children}</span>
+      {children}
     </button>
   );
 }
@@ -63,9 +125,23 @@ function SoftOrangeButton({ children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-w-[150px] items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 px-5 py-3 text-sm font-semibold shadow-[0_8px_18px_rgba(250,137,26,0.08)] transition hover:border-orange-300 hover:bg-orange-100"
+      className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      style={{ 
+        backgroundColor: "transparent", 
+        color: "#f97316", 
+        border: "2px solid #f97316",
+        boxShadow: "none"
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "#f97316";
+        e.currentTarget.style.color = "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.color = "#f97316";
+      }}
     >
-      <span className="!text-orange-700">{children}</span>
+      {children}
     </button>
   );
 }
@@ -75,9 +151,49 @@ function PrimaryButton({ children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-w-[190px] items-center justify-center rounded-2xl border border-transparent bg-[#FA891A] px-5 py-3 text-sm font-semibold shadow-[0_12px_28px_rgba(250,137,26,0.22)] transition hover:bg-[#EA7607]"
+      className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      style={{ 
+        backgroundColor: "transparent", 
+        color: "#fa891a", 
+        border: "2px solid #fa891a",
+        boxShadow: "none"
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "#fa891a";
+        e.currentTarget.style.color = "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.color = "#fa891a";
+      }}
     >
-      <span className="!text-white">{children}</span>
+      {children}
+    </button>
+  );
+}
+
+function DangerButton({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+      style={{ 
+        backgroundColor: "transparent", 
+        color: "#dc2626", 
+        border: "2px solid #dc2626",
+        boxShadow: "none"
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "#dc2626";
+        e.currentTarget.style.color = "#ffffff";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.color = "#dc2626";
+      }}
+    >
+      {children}
     </button>
   );
 }
@@ -86,23 +202,23 @@ function ConfirmLeaveComprasModal({ open, onCancel, onConfirm }) {
   return (
     <ModalShell open={open}>
       <ModalHeader
+        variant="danger"
         icon={
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
         }
         title="Cambios sin guardar"
-        description="Tienes cambios sin guardar en Compras. Si sales ahora, se perderán."
+        description="Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?"
       />
 
       <ModalFooter>
-        <SecondaryButton onClick={onCancel}>Quedarme</SecondaryButton>
-        <PrimaryButton onClick={onConfirm}>Salir sin guardar</PrimaryButton>
+        <SecondaryButton onClick={onCancel}>Cancelar</SecondaryButton>
+        <DangerButton onClick={onConfirm}>Salir</DangerButton>
       </ModalFooter>
     </ModalShell>
   );
@@ -112,24 +228,24 @@ function ConfirmLeaveTomaModal({ open, onStay, onDiscard, onSaveAndLeave }) {
   return (
     <ModalShell open={open}>
       <ModalHeader
+        variant="warning"
         icon={
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
               d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
             />
           </svg>
         }
-        title="Toma de inventario en progreso"
-        description="Hay una toma de inventario en progreso. Elige si quieres continuar aquí, salir sin guardar o guardar antes de salir."
+        title="⚠️ Toma de inventario en progreso"
+        description="Hay una toma de inventario activa. Si cambias de módulo sin guardar, perderás el progreso. Elige una opción:"
       />
 
       <ModalFooter>
-        <SecondaryButton onClick={onStay}>Continuar aquí</SecondaryButton>
-        <SoftOrangeButton onClick={onDiscard}>Salir sin guardar</SoftOrangeButton>
-        <PrimaryButton onClick={onSaveAndLeave}>Guardar y salir</PrimaryButton>
+        <SecondaryButton onClick={onStay}>📌 Seguir aquí</SecondaryButton>
+        <SoftOrangeButton onClick={onDiscard}>🗑️ Descartar progreso</SoftOrangeButton>
+        <PrimaryButton onClick={onSaveAndLeave}>💾 Guardar y continuar</PrimaryButton>
       </ModalFooter>
     </ModalShell>
   );
@@ -261,8 +377,8 @@ function SidebarContent({ onNavigate }) {
   const getSubMenuItemClass = (isActive) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-sm ${
       isActive
-        ? "bg-orange-500/14 text-orange-100 border border-orange-400/20"
-        : "text-slate-400 hover:bg-white/6 hover:text-white border border-transparent"
+        ? "!bg-white/15 !text-white border border-white/20"
+        : "text-slate-400 hover:bg-white/10 hover:text-white border border-transparent"
     }`;
 
   const getMenuButtonClass = (isActive) =>
@@ -311,6 +427,22 @@ function SidebarContent({ onNavigate }) {
             />
           </svg>
           <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink
+          to="/herramientas"
+          className={({ isActive }) => getMenuItemClass(isActive)}
+          onClick={(e) => handleGuardedNav(e, "/herramientas")}
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M14.7 6.3l3 3m0 0l-9.4 9.4H5.3v-3l9.4-9.4m3 3L16 4.3a1.414 1.414 0 00-2 0l-1.3 1.3"
+            />
+          </svg>
+          <span>Herramientas</span>
         </NavLink>
 
         <div className="space-y-0.5">
@@ -477,7 +609,7 @@ function SidebarContent({ onNavigate }) {
 
         <button
           onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 transition-colors hover:border-orange-500 hover:bg-orange-500 hover:text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 transition-colors hover:!bg-orange-500 hover:!border-orange-500 hover:!text-white"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

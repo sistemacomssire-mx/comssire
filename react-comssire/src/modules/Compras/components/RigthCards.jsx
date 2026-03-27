@@ -8,7 +8,7 @@ export default function RigthCards(props) {
   const saving = !!props.saving;
   const forceMode = !!props.forceMode;
 
-  const compraEstado = props.compraEstado ?? "—";
+  const compraEstado = props.compraEstado ?? "Borrador";
   const motivoRechazo = props.motivoRechazo ?? null;
   const totals = props.totals ?? { items: 0, subtotal: 0, iva: 0, total: 0 };
 
@@ -17,25 +17,53 @@ export default function RigthCards(props) {
   const onAdminSaveDraft = props.onAdminSaveDraft ?? null;
   const onAdminSaveAndDownloadMod = props.onAdminSaveAndDownloadMod ?? null;
 
-  const isEnviada = String(compraEstado) === "Enviada";
-  const isExportada = String(compraEstado) === "Exportada";
-  const isRechazada = String(compraEstado) === "Rechazada";
+  const isEnviada = String(compraEstado).toLowerCase() === "enviada";
+  const isExportada = String(compraEstado).toLowerCase() === "exportada";
+  const isRechazada = String(compraEstado).toLowerCase() === "rechazada";
 
+  // Función para obtener el color del estado
   const getEstadoColor = () => {
-    switch (compraEstado) {
-      case "Borrador":
+    const estado = String(compraEstado).toLowerCase();
+    switch (estado) {
+      case "borrador":
+      case "1":
         return "bg-slate-100 text-slate-700 border-slate-200";
-      case "Enviada":
+      case "enviada":
+      case "2":
         return "bg-blue-50 text-blue-700 border-blue-200";
-      case "Aprobada":
+      case "aprobada":
+      case "3":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "Rechazada":
+      case "rechazada":
+      case "4":
         return "bg-red-50 text-red-700 border-red-200";
-      case "Exportada":
+      case "exportada":
+      case "5":
         return "bg-orange-50 text-orange-700 border-orange-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
+  };
+
+  // Función para obtener el texto del estado en español
+  const getEstadoTexto = () => {
+    const estado = String(compraEstado).toLowerCase();
+    
+    // Mapeo para números
+    const estadoMap = {
+      "1": "Borrador",
+      "2": "Enviada a aprobación",
+      "3": "Aprobada",
+      "4": "Rechazada",
+      "5": "Exportada (MOD generado)",
+      "borrador": "Borrador",
+      "enviada": "Enviada a aprobación",
+      "aprobada": "Aprobada",
+      "rechazada": "Rechazada",
+      "exportada": "Exportada (MOD generado)"
+    };
+    
+    return estadoMap[estado] || compraEstado;
   };
 
   const getFinalizarButtonText = () => {
@@ -57,7 +85,7 @@ export default function RigthCards(props) {
             </div>
 
             <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getEstadoColor()}`}>
-              {compraEstado}
+              {getEstadoTexto()}
             </span>
           </div>
 
