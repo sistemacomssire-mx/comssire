@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { Toaster, toast } from "sonner";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import AppLayout from "../../../layouts/AppLayout/AppLayout";
 import { comprasApi } from "../api/compras.api";
 
-import OrderHeader from "../components/OrderHeader";
 import OrderForm from "../components/OrderForm";
 import LinesSection from "../components/LinesSection";
 import SplitModal from "../components/SplitModal";
@@ -16,27 +16,85 @@ function money(n) {
   return "$" + x.toFixed(2);
 }
 
-function confirmToast(message, opts = {}) {
-  return new Promise((resolve) => {
-    const id = toast(message, {
-      duration: Infinity,
-      ...opts,
-      action: {
-        label: opts.okText || "Sí",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(true);
-        },
-      },
-      cancel: {
-        label: opts.cancelText || "No",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(false);
-        },
-      },
-    });
+const swalBase = {
+  backdrop: "rgba(15, 23, 42, 0.22)",
+  background: "#ffffff",
+  heightAuto: false,
+  allowOutsideClick: false,
+  customClass: {
+    popup: "swal2-popup-custom",
+    title: "swal2-title-custom",
+    htmlContainer: "swal2-text-custom",
+    actions: "swal2-actions-custom",
+    confirmButton: "swal2-confirm-custom",
+    cancelButton: "swal2-cancel-custom",
+  },
+  buttonsStyling: true,
+};
+
+function niceErrorText(e, fallback) {
+  const data = getNiceError(e);
+  if (typeof data === "string") return data;
+  return data?.message || data?.Message || fallback;
+}
+
+function showSuccess(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "success",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#ea580c",
   });
+}
+
+function showError(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "error",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#dc2626",
+  });
+}
+
+function showWarning(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "warning",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#ea580c",
+  });
+}
+
+function confirmAction({ title, text, confirmButtonText = "Sí", cancelButtonText = "Cancelar", icon = "warning" }) {
+  return Swal.fire({
+    ...swalBase,
+    icon,
+    title,
+    text,
+    showCancelButton: true,
+    confirmButtonText,
+    cancelButtonText,
+    confirmButtonColor: "#ea580c",
+    cancelButtonColor: "#64748b",
+    reverseButtons: true,
+    focusCancel: true,
+  });
+}
+
+function getAlmacenLabel(almacenes, value) {
+  const key = String(value ?? "").trim();
+  const found = (almacenes || []).find((a) => String(a?.numAlm ?? a?.NumAlm ?? a?.id ?? a?.Id ?? "") === key);
+  return found?.descr || found?.Descr || found?.nombre || found?.Nombre || found?.descripcion || found?.Descripcion || key || "almacén seleccionado";
+}
+
+function getPartidaLabel(line) {
+  return String(line?.desc || line?.descr || line?.descripcion || line?.codigo || "la partida").trim();
 }
 
 function getNiceError(e) {
@@ -60,7 +118,6 @@ export default function AprobacionesComprasPage() {
   const [aprobaciones, setAprobaciones] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
 
-  // cabecera
   const [compraEstado, setCompraEstado] = useState(null);
   const [folioFactura, setFolioFactura] = useState("");
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -68,21 +125,17 @@ export default function AprobacionesComprasPage() {
   const [almacenSel, setAlmacenSel] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
-  // factura visual
   const [facturaInfo, setFacturaInfo] = useState(null);
 
-  // catálogos
   const [proveedores, setProveedores] = useState([]);
   const [almacenes, setAlmacenes] = useState([]);
 
-  // líneas
   const [lines, setLines] = useState([]);
   const linesRef = useRef([]);
   useEffect(() => {
     linesRef.current = lines || [];
   }, [lines]);
 
-  // devolver modal
   const [devolverOpen, setDevolverOpen] = useState(false);
   const [motivo, setMotivo] = useState("");
 
@@ -128,7 +181,7 @@ export default function AprobacionesComprasPage() {
       setAlmacenes(Array.isArray(alm) ? alm : []);
     } catch (e) {
       console.error("[APROBACIONES] catálogos", getNiceError(e));
-      toast.error("No se pudieron cargar catálogos.");
+      showError("Error al cargar catálogos", niceErrorText(e, "No se pudieron cargar catálogos."));
     }
   }
 
@@ -140,7 +193,7 @@ export default function AprobacionesComprasPage() {
     } catch (e) {
       console.error("[APROBACIONES] load", getNiceError(e));
       setAprobaciones([]);
-      toast.error("No se pudieron cargar aprobaciones.");
+      showError("Error al cargar aprobaciones", niceErrorText(e, "No se pudieron cargar aprobaciones."));
     } finally {
       setLoading(false);
     }
@@ -181,40 +234,67 @@ export default function AprobacionesComprasPage() {
       const partidas = compra?.partidas ?? compra?.Partidas ?? [];
       const arr = Array.isArray(partidas) ? partidas : [];
 
-      const mapped = arr.map((p) => {
-        const partidaId = p?.id ?? p?.Id ?? null;
-        const codigo = String(p?.cveArt ?? p?.CveArt ?? "").trim();
-        const cant = Number(p?.cantTotal ?? p?.CantTotal ?? 0);
-        const precio = Number(p?.costoUnitario ?? p?.CostoUnitario ?? 0);
+      const mapped = await Promise.all(
+        arr.map(async (p) => {
+          const partidaId = p?.id ?? p?.Id ?? null;
+          const codigo = String(p?.cveArt ?? p?.CveArt ?? "").trim();
+          const cant = Number(p?.cantTotal ?? p?.CantTotal ?? 0);
+          const precio = Number(p?.costoUnitario ?? p?.CostoUnitario ?? 0);
 
-        const rep = p?.repartos ?? p?.Repartos ?? [];
-        const repArr = Array.isArray(rep) ? rep : [];
-        const first = repArr.length ? repArr[0] : null;
-        const wh = first?.numAlm ?? first?.NumAlm ?? almaDef ?? "";
+          const rep = p?.repartos ?? p?.Repartos ?? [];
+          const repArr = Array.isArray(rep) ? rep : [];
+          const first = repArr.length ? repArr[0] : null;
+          const wh = first?.numAlm ?? first?.NumAlm ?? almaDef ?? "";
 
-        return {
-          backendPartidaId: partidaId,
-          codigo,
-          desc: p?.descripcion || p?.Descripcion || "",
-          cant,
-          precio,
-          warehouse: String(wh ?? ""),
-        };
-      });
+          let descripcion =
+            p?.descr ||
+            p?.Descr ||
+            p?.descripcion ||
+            p?.Descripcion ||
+            p?.producto?.descr ||
+            p?.producto?.Descr ||
+            p?.producto?.descripcion ||
+            p?.producto?.Descripcion ||
+            "";
+
+          if (!descripcion && codigo) {
+            try {
+              const prod = await comprasApi.getProductoByCodigo(codigo);
+              descripcion =
+                prod?.descr ??
+                prod?.Descr ??
+                prod?.descripcion ??
+                prod?.Descripcion ??
+                "";
+            } catch (e) {
+              console.warn("[APROBACIONES] No se pudo obtener descripción para:", codigo, e);
+            }
+          }
+
+          return {
+            backendPartidaId: partidaId,
+            codigo,
+            desc: descripcion,
+            cant,
+            precio,
+            warehouse: String(wh ?? ""),
+          };
+        })
+      );
 
       setLines(mapped);
 
       toast.success("Compra cargada.", { id: t });
     } catch (e) {
       console.error("[APROBACIONES] load selected", getNiceError(e));
-      toast.error("No se pudo cargar la compra.", { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo cargar la compra", niceErrorText(e, "No se pudo cargar la compra."));
     }
   }
 
   useEffect(() => {
     if (!isAdmin) {
-      toast.error("No tienes permisos para ver aprobaciones.");
-      navigate("/");
+      showError("Acceso denegado", "No tienes permisos para ver aprobaciones.").finally(() => navigate("/"));
       return;
     }
     loadCatalogos();
@@ -239,7 +319,20 @@ export default function AprobacionesComprasPage() {
 
     const numAlm = Number(newWh);
     if (!Number.isFinite(numAlm) || numAlm <= 0) {
-      toast.error("El almacén seleccionado no es válido (NumAlm debe ser número).");
+      setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, warehouse: String(line?.warehouse ?? "") } : x)));
+      await showError("Almacén inválido", "El almacén seleccionado no es válido.");
+      return;
+    }
+
+    const previousWarehouse = String(line?.warehouse ?? "");
+    const result = await confirmAction({
+      title: "¿Cambiar almacén?",
+      text: `La partida ${getPartidaLabel(line)} cambiará de ${getAlmacenLabel(almacenes, previousWarehouse)} a ${getAlmacenLabel(almacenes, newWh)}.`,
+      confirmButtonText: "Sí, cambiar",
+      cancelButtonText: "Cancelar",
+    });
+    if (!result.isConfirmed) {
+      setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, warehouse: previousWarehouse } : x)));
       return;
     }
 
@@ -252,10 +345,12 @@ export default function AprobacionesComprasPage() {
       if (payload.CostoUnitario < 0) throw new Error("CostoUnitario inválido.");
 
       await comprasApi.updatePartida(selectedId, partidaId, payload);
-      toast.success("Almacén actualizado.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Almacén actualizado", `La partida ${getPartidaLabel(line)} ahora está en ${getAlmacenLabel(almacenes, newWh)}.`);
     } catch (e) {
       console.error("[APROBACIONES] updatePartida almacén", getNiceError(e));
-      toast.error(e?.response?.parsedData?.message || "No se pudo guardar el almacén.", { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo guardar el almacén", niceErrorText(e, "No se pudo guardar el almacén."));
 
       try {
         const compra = await comprasApi.getCompra(selectedId);
@@ -274,10 +369,19 @@ export default function AprobacionesComprasPage() {
           const first = repArr.length ? repArr[0] : null;
           const wh = first?.numAlm ?? first?.NumAlm ?? almaDef ?? "";
 
+          const descripcion =
+            p?.descripcion ||
+            p?.Descripcion ||
+            p?.producto?.descripcion ||
+            p?.producto?.Descripcion ||
+            p?.producto?.descr ||
+            p?.producto?.Descr ||
+            "";
+
           return {
             backendPartidaId: partidaId2,
             codigo,
-            desc: p?.descripcion || p?.Descripcion || "",
+            desc: descripcion,
             cant,
             precio,
             warehouse: String(wh ?? ""),
@@ -294,11 +398,13 @@ export default function AprobacionesComprasPage() {
   async function handleGuardarCambios() {
     if (!selectedId) return;
 
-    const ok = await confirmToast("¿Guardar cambios de validación?", {
-      okText: "Guardar",
-      cancelText: "Cancelar",
+    const ok = await confirmAction({
+      title: "¿Guardar cambios?",
+      text: `Se guardarán los cambios de la compra ${folioFactura || selectedId}.`,
+      confirmButtonText: "Sí, guardar",
+      cancelButtonText: "Cancelar",
     });
-    if (!ok) return;
+    if (!ok.isConfirmed) return;
 
     const t = toast.loading("Guardando cambios…");
     try {
@@ -316,14 +422,16 @@ export default function AprobacionesComprasPage() {
         );
       }
 
-      toast.success("Cambios guardados.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Cambios guardados", `La compra ${folioFactura || selectedId} se actualizó correctamente.`);
 
       const refreshed = await comprasApi.getCompra(selectedId);
       setCompraEstado(String(refreshed?.estado ?? refreshed?.Estado ?? compraEstado));
     } catch (e) {
       console.error("[APROBACIONES] guardar cambios error", getNiceError(e));
       const msg = e?.response?.parsedData?.message || "No se pudo guardar.";
-      toast.error(msg, { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo guardar", msg);
     } finally {
       setSaving(false);
     }
@@ -332,18 +440,21 @@ export default function AprobacionesComprasPage() {
   async function handleAprobar() {
     if (!selectedId) return;
 
-    const ok = await confirmToast("¿Aprobar esta compra? (impacta inventario)", {
-      okText: "Aprobar",
-      cancelText: "Cancelar",
+    const ok = await confirmAction({
+      title: "¿Aprobar compra?",
+      text: `Se aprobará la compra ${folioFactura || selectedId} y esto impactará inventario.`,
+      confirmButtonText: "Sí, aprobar",
+      cancelButtonText: "Cancelar",
     });
-    if (!ok) return;
+    if (!ok.isConfirmed) return;
 
     const t = toast.loading("Aprobando…");
     try {
       setSaving(true);
       await comprasApi.aprobarCompra(selectedId);
 
-      toast.success("Compra aprobada.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Compra aprobada", `La compra ${folioFactura || selectedId} fue aprobada correctamente.`);
 
       await loadAprobaciones();
       setSelectedId(null);
@@ -352,7 +463,8 @@ export default function AprobacionesComprasPage() {
       setFacturaInfo(null);
     } catch (e) {
       console.error("[APROBACIONES] aprobar", getNiceError(e));
-      toast.error(e?.response?.parsedData?.message || "No se pudo aprobar.", { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo aprobar", niceErrorText(e, "No se pudo aprobar."));
     } finally {
       setSaving(false);
     }
@@ -362,20 +474,23 @@ export default function AprobacionesComprasPage() {
     if (!selectedId) return;
 
     const m = String(motivo || "").trim();
-    if (!m) return toast.warning("Escribe el motivo para devolver.");
+    if (!m) return showWarning("Motivo requerido", "Escribe el motivo para devolver.");
 
-    const ok = await confirmToast("¿Devolver la compra al trabajador?", {
-      okText: "Devolver",
-      cancelText: "Cancelar",
+    const ok = await confirmAction({
+      title: "¿Devolver compra?",
+      text: `La compra ${folioFactura || selectedId} se devolverá al trabajador con el motivo capturado.`,
+      confirmButtonText: "Sí, devolver",
+      cancelButtonText: "Cancelar",
     });
-    if (!ok) return;
+    if (!ok.isConfirmed) return;
 
     const t = toast.loading("Devolviendo…");
     try {
       setSaving(true);
       await comprasApi.rechazarCompra(selectedId, { Motivo: m, motivo: m });
 
-      toast.success("Compra devuelta.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Compra devuelta", `La compra ${folioFactura || selectedId} fue devuelta correctamente.`);
 
       setDevolverOpen(false);
       setMotivo("");
@@ -387,7 +502,8 @@ export default function AprobacionesComprasPage() {
       setFacturaInfo(null);
     } catch (e) {
       console.error("[APROBACIONES] devolver", getNiceError(e));
-      toast.error(e?.response?.parsedData?.message || "No se pudo devolver.", { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo devolver", niceErrorText(e, "No se pudo devolver."));
     } finally {
       setSaving(false);
     }
@@ -396,11 +512,13 @@ export default function AprobacionesComprasPage() {
   async function handleRemoveLine(line, idx) {
     if (!selectedId) return;
 
-    const ok = await confirmToast("¿Eliminar la partida?", {
-      okText: "Eliminar",
-      cancelText: "Cancelar",
+    const ok = await confirmAction({
+      title: "¿Eliminar partida?",
+      text: `Se eliminará la partida ${getPartidaLabel(line)}.`,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
     });
-    if (!ok) return;
+    if (!ok.isConfirmed) return;
 
     const backendId = line?.backendPartidaId;
 
@@ -414,10 +532,12 @@ export default function AprobacionesComprasPage() {
       setSaving(true);
       await comprasApi.deletePartida(selectedId, backendId);
       setLines((prev) => prev.filter((x) => x.backendPartidaId !== backendId));
-      toast.success("Partida eliminada.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Partida eliminada", `Se eliminó ${getPartidaLabel(line)}.`);
     } catch (e) {
       console.error("[APROBACIONES] delete", getNiceError(e));
-      toast.error("No se pudo eliminar.", { id: t });
+      toast.dismiss(t);
+      await showError("No se pudo eliminar", niceErrorText(e, "No se pudo eliminar."));
     } finally {
       setSaving(false);
     }
@@ -426,81 +546,55 @@ export default function AprobacionesComprasPage() {
   return (
     <AppLayout>
       <Toaster position="top-right" richColors closeButton />
-      
-      <style>{`
-        /* Estilos personalizados para tema claro con naranja y azul */
-        .bg-naranja-claro {
-          background-color: #FFF7F0;
-        }
-        .border-naranja-suave {
-          border-color: #FFE4CC;
-        }
-        .text-naranja-principal {
-          color: #F97316;
-        }
-        .bg-naranja-principal {
-          background-color: #F97316;
-        }
-        .hover-bg-naranja-oscuro:hover {
-          background-color: #EA580C;
-        }
-        .bg-azul-claro {
-          background-color: #EFF6FF;
-        }
-        .border-azul-suave {
-          border-color: #DBEAFE;
-        }
-        .text-azul-principal {
-          color: #3B82F6;
-        }
-        .bg-azul-principal {
-          background-color: #3B82F6;
-        }
-        .hover-bg-azul-oscuro:hover {
-          background-color: #2563EB;
-        }
-        .sombra-suave {
-          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-      `}</style>
 
-      <div className="w-full max-w-7xl mx-auto bg-gray-50 min-h-screen p-4">
-        {/* Selector de aprobaciones horizontal */}
+      <div className="w-full min-h-screen bg-gray-50 px-4 py-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-800">Aprobaciones pendientes</h2>
-            <button 
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm" 
-              onClick={loadAprobaciones} 
-              disabled={loading}
-            >
-              Recargar
-            </button>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="!rounded-lg !bg-orange-500 !px-4 !py-2 !text-sm !font-medium !text-white !shadow-sm !transition-colors hover:!bg-orange-600 active:!bg-orange-700 disabled:!opacity-60"
+                onClick={() => navigate(-1)}
+              >
+                Volver
+              </button>
+
+              <button
+                className="!rounded-lg !bg-orange-500 !px-4 !py-2 !text-sm !font-medium !text-white !shadow-sm !transition-colors hover:!bg-orange-600 active:!bg-orange-700 disabled:!opacity-60"
+                onClick={loadAprobaciones}
+                disabled={loading}
+              >
+                Recargar
+              </button>
+            </div>
           </div>
-          
+
           <div className="flex gap-3 overflow-x-auto pb-3">
             {aprobaciones.map((c) => (
               <button
                 key={c.id}
-                className={`px-4 py-3 rounded-xl border transition-all flex-shrink-0 w-48 text-left ${
+                className={`!w-56 !flex-shrink-0 !rounded-xl !border !px-4 !py-3 !text-left !transition-all ${
                   selectedId === c.id
-                    ? "border-orange-400 bg-orange-50 shadow-md ring-2 ring-orange-200"
-                    : "border-gray-200 bg-white hover:bg-gray-50 hover:border-orange-200 shadow-sm"
+                    ? "!border-blue-300 !bg-blue-50 !shadow-md !ring-2 !ring-blue-100"
+                    : "!border-slate-200 !bg-white !shadow-sm hover:!border-blue-200 hover:!bg-slate-50"
                 }`}
                 onClick={() => loadSelectedCompra(c.id)}
               >
-                <div className="font-bold text-gray-800 text-sm truncate">{c.folioFactura}</div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="truncate text-sm font-bold text-slate-800">
+                  {c.folioFactura || "Sin folio"}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
                   {c.enviadoAt ? new Date(c.enviadoAt).toLocaleDateString("es-MX") : ""}
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5 truncate">
+                <div className="mt-0.5 truncate text-xs text-slate-500">
                   {c.cveClpv}
                 </div>
               </button>
             ))}
-            
+
             {!aprobaciones.length && !loading && (
-              <div className="text-sm text-gray-500 py-3 px-4 border border-gray-200 rounded-xl bg-white">
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                 No hay compras enviadas
               </div>
             )}
@@ -509,72 +603,50 @@ export default function AprobacionesComprasPage() {
 
         {selectedId && (
           <>
-            {/* HEADER COMPACTO */}
-            <div className="mb-4 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Folio:</span>
-                    <span className="font-mono font-semibold text-gray-800 text-sm">{folioFactura || "Sin folio"}</span>
-                  </div>
-                  
-                  <div className="w-px h-4 bg-gray-200"></div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Fecha:</span>
-                    <span className="text-sm text-gray-700">{fecha}</span>
-                  </div>
-                  
-                  <div className="w-px h-4 bg-gray-200"></div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Estatus:</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      compraEstado === "Aprobada" ? "bg-green-100 text-green-700" :
-                      compraEstado === "Rechazada" ? "bg-red-100 text-red-700" :
-                      "bg-orange-100 text-orange-700"
-                    }`}>
-                      {compraEstado || "Enviada"}
-                    </span>
-                  </div>
+            <div className="mb-4 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Folio:</span>
+                  <span className="font-mono text-sm font-semibold text-gray-800">
+                    {folioFactura || "Sin folio"}
+                  </span>
                 </div>
 
+                <div className="h-4 w-px bg-gray-200"></div>
+
                 <div className="flex items-center gap-2">
-                  <button
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-xs font-medium"
-                    onClick={handleGuardarCambios}
-                    disabled={!selectedId || saving}
+                  <span className="text-xs text-gray-500">Fecha:</span>
+                  <span className="text-sm text-gray-700">{fecha}</span>
+                </div>
+
+                <div className="h-4 w-px bg-gray-200"></div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Estatus:</span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      compraEstado === "Aprobada"
+                        ? "bg-green-100 text-green-700"
+                        : compraEstado === "Rechazada"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-orange-100 text-orange-700"
+                    }`}
                   >
-                    Guardar
-                  </button>
-                  <button
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-xs font-medium"
-                    onClick={() => setDevolverOpen(true)}
-                    disabled={!selectedId || saving}
-                  >
-                    Devolver
-                  </button>
-                  <button
-                    className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-xs font-medium shadow-sm"
-                    onClick={handleAprobar}
-                    disabled={!selectedId || saving}
-                  >
-                    Aprobar
-                  </button>
+                    {compraEstado || "Enviada"}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* MITAD Y MITAD */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* LADO IZQUIERDO: Factura */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_1fr] 2xl:grid-cols-[1.25fr_1fr]">
               <div className="w-full">
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)] sticky top-4">
-                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0 flex justify-between items-center">
+                <div className="sticky top-4 flex h-[calc(100vh-170px)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
                     <h3 className="font-semibold text-gray-800">FACTURA</h3>
                     <span className="text-xs text-gray-500">Zoom • Arrastrar</span>
                   </div>
-                  <div className="flex-1 bg-gray-50 overflow-hidden">
+
+                  <div className="relative flex-1 overflow-hidden bg-gray-50">
                     {facturaInfo ? (
                       facturaInfo.viewUrl && isImageContentType(facturaInfo.contentType) ? (
                         <TransformWrapper
@@ -591,35 +663,36 @@ export default function AprobacionesComprasPage() {
                               <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                                 <button
                                   onClick={() => zoomIn()}
-                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
+                                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   +
                                 </button>
                                 <button
                                   onClick={() => zoomOut()}
-                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
+                                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   -
                                 </button>
                                 <button
                                   onClick={() => resetTransform()}
-                                  className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
+                                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
                                 >
                                   ↺
                                 </button>
                               </div>
+
                               <TransformComponent
                                 wrapperStyle={{
                                   width: "100%",
                                   height: "100%",
-                                  overflow: "auto"
+                                  overflow: "auto",
                                 }}
                                 contentStyle={{
                                   width: "100%",
                                   height: "100%",
                                   display: "flex",
                                   alignItems: "center",
-                                  justifyContent: "center"
+                                  justifyContent: "center",
                                 }}
                               >
                                 <img
@@ -629,7 +702,7 @@ export default function AprobacionesComprasPage() {
                                     maxWidth: "100%",
                                     maxHeight: "100%",
                                     objectFit: "contain",
-                                    display: "block"
+                                    display: "block",
                                   }}
                                 />
                               </TransformComponent>
@@ -637,26 +710,26 @@ export default function AprobacionesComprasPage() {
                           )}
                         </TransformWrapper>
                       ) : facturaInfo.viewUrl ? (
-                        <div className="h-full flex items-center justify-center text-center p-6">
+                        <div className="flex h-full items-center justify-center p-6 text-center">
                           <div>
-                            <div className="mb-3 text-gray-500 text-sm">No se puede previsualizar</div>
+                            <div className="mb-3 text-sm text-gray-500">No se puede previsualizar</div>
                             <a
                               href={facturaInfo.viewUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-block px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
+                              className="inline-block !rounded-lg !bg-orange-500 !px-4 !py-2 !text-sm !font-medium !text-white !transition-colors hover:!bg-orange-600 active:!bg-orange-700"
                             >
                               Abrir archivo
                             </a>
                           </div>
                         </div>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-gray-400 p-6 text-center text-sm">
+                        <div className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-400">
                           Sin URL disponible
                         </div>
                       )
                     ) : (
-                      <div className="h-full flex items-center justify-center text-gray-400 p-6 text-center text-sm">
+                      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-400">
                         Sin factura adjunta
                       </div>
                     )}
@@ -664,100 +737,100 @@ export default function AprobacionesComprasPage() {
                 </div>
               </div>
 
-              {/* LADO DERECHO: Formulario */}
-              <div className="w-full space-y-4 pb-4 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
-                {/* Formulario de cabecera - COMPACTO */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                  <h3 className="font-semibold text-gray-800 mb-3">DATOS DE LA COMPRA</h3>
-                  <OrderForm
-                    readOnly={false}
-                    loading={false}
-                    folio={folioFactura}
-                    setFolio={setFolioFactura}
-                    fecha={fecha}
-                    setFecha={setFecha}
-                    notas={observaciones}
-                    setNotas={setObservaciones}
-                    proveedores={proveedores}
-                    proveedorSel={proveedorSel}
-                    setProveedorSel={setProveedorSel}
-                    almacenes={almacenes}
-                    almacenSel={almacenSel}
-                    setAlmacenSel={setAlmacenSel}
-                  />
-                </div>
-
-                {/* Líneas - COMPACTO */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                  <h3 className="font-semibold text-gray-800 mb-3">PARTIDAS</h3>
-                  <LinesSection
-                    readOnly={false}
-                    saving={saving}
-                    almacenes={almacenes}
-                    almacenLineaSel={almacenSel}
-                    setAlmacenLineaSel={() => {}}
-                    piezaCodigo={""}
-                    setPiezaCodigo={() => {}}
-                    piezaDesc={""}
-                    setPiezaDesc={() => {}}
-                    piezaCant={1}
-                    setPiezaCant={() => {}}
-                    piezaPrecio={0}
-                    setPiezaPrecio={() => {}}
-                    onLookup={() => {}}
-                    existencias={[]}
-                    onAddLine={() => {}}
-                    onRemoveLine={handleRemoveLine}
-                    lines={lines}
-                    onChangeLineWarehouse={handleChangeLineWarehouse}
-                    money={money}
-                    hideAddForm
-                  />
-                </div>
-
-                {/* Totales - COMPACTO */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500 text-xs">Partidas: </span>
-                      <span className="font-bold text-gray-800 text-sm">{totals.items}</span>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500 text-xs">Subtotal: </span>
-                      <span className="font-bold text-gray-800 text-sm">{money(totals.subtotal)}</span>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500 text-xs">IVA: </span>
-                      <span className="font-bold text-gray-800 text-sm">{money(totals.iva)}</span>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg px-3 py-2 border border-orange-200">
-                      <span className="text-orange-600 text-xs">Total: </span>
-                      <span className="font-bold text-orange-600 text-sm">{money(totals.total)}</span>
-                    </div>
+              <div className="h-[calc(100vh-170px)] w-full overflow-y-auto pb-4">
+                <div className="space-y-4 pr-1">
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <h3 className="mb-3 text-lg font-semibold text-gray-800">DATOS DE LA COMPRA</h3>
+                    <OrderForm
+                      readOnly={false}
+                      loading={false}
+                      folio={folioFactura}
+                      setFolio={setFolioFactura}
+                      fecha={fecha}
+                      setFecha={setFecha}
+                      notas={observaciones}
+                      setNotas={setObservaciones}
+                      proveedores={proveedores}
+                      proveedorSel={proveedorSel}
+                      setProveedorSel={setProveedorSel}
+                      almacenes={almacenes}
+                      almacenSel={almacenSel}
+                      setAlmacenSel={setAlmacenSel}
+                    />
                   </div>
 
-                  <div className="flex gap-3 justify-end">
-                    <button
-                      className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
-                      onClick={handleGuardarCambios}
-                      disabled={!selectedId || saving}
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
-                      onClick={() => setDevolverOpen(true)}
-                      disabled={!selectedId || saving}
-                    >
-                      Devolver
-                    </button>
-                    <button
-                      className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
-                      onClick={handleAprobar}
-                      disabled={!selectedId || saving}
-                    >
-                      Aprobar
-                    </button>
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <h3 className="mb-3 text-lg font-semibold text-gray-800">PARTIDAS</h3>
+                    <LinesSection
+                      readOnly={false}
+                      saving={saving}
+                      almacenes={almacenes}
+                      almacenLineaSel={almacenSel}
+                      setAlmacenLineaSel={() => {}}
+                      piezaCodigo={""}
+                      setPiezaCodigo={() => {}}
+                      piezaDesc={""}
+                      setPiezaDesc={() => {}}
+                      piezaCant={1}
+                      setPiezaCant={() => {}}
+                      piezaPrecio={0}
+                      setPiezaPrecio={() => {}}
+                      onLookup={() => {}}
+                      existencias={[]}
+                      onAddLine={() => {}}
+                      onRemoveLine={handleRemoveLine}
+                      lines={lines}
+                      onChangeLineWarehouse={handleChangeLineWarehouse}
+                      money={money}
+                      hideAddForm
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="mb-4 flex flex-wrap gap-3">
+                      <div className="rounded-lg bg-gray-50 px-3 py-2">
+                        <span className="text-xs text-gray-500">Partidas: </span>
+                        <span className="text-sm font-bold text-gray-800">{totals.items}</span>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 px-3 py-2">
+                        <span className="text-xs text-gray-500">Subtotal: </span>
+                        <span className="text-sm font-bold text-gray-800">{money(totals.subtotal)}</span>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 px-3 py-2">
+                        <span className="text-xs text-gray-500">IVA: </span>
+                        <span className="text-sm font-bold text-gray-800">{money(totals.iva)}</span>
+                      </div>
+                      <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
+                        <span className="text-xs text-orange-600">Total: </span>
+                        <span className="text-sm font-bold text-orange-600">{money(totals.total)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-3">
+                      <button
+                        className="!rounded-lg !bg-orange-500 !px-4 !py-2 !text-sm !font-medium !text-white !shadow-sm !transition-colors hover:!bg-orange-600 active:!bg-orange-700 disabled:!opacity-60"
+                        onClick={handleGuardarCambios}
+                        disabled={!selectedId || saving}
+                      >
+                        Guardar
+                      </button>
+
+                      <button
+                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                        onClick={() => setDevolverOpen(true)}
+                        disabled={!selectedId || saving}
+                      >
+                        Devolver
+                      </button>
+
+                      <button
+                        className="!rounded-lg !bg-blue-500 !px-5 !py-2 !text-sm !font-medium !text-white !shadow-sm !transition-colors hover:!bg-blue-600 active:!bg-blue-700 disabled:!opacity-60"
+                        onClick={handleAprobar}
+                        disabled={!selectedId || saving}
+                      >
+                        Aprobar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -766,31 +839,42 @@ export default function AprobacionesComprasPage() {
         )}
       </div>
 
-      {/* Modal de devolución */}
       {devolverOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg p-5">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
+          <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
               <div className="font-semibold text-gray-800">Devolver compra</div>
-              <button className="text-gray-400 hover:text-gray-600 text-sm px-2 py-1" onClick={() => setDevolverOpen(false)}>
+              <button
+                className="px-2 py-1 text-sm text-gray-400 hover:text-gray-600"
+                onClick={() => setDevolverOpen(false)}
+              >
                 ✕
               </button>
             </div>
+
             <div className="mb-4">
-              <label className="text-sm text-gray-700 mb-2 block font-medium">Motivo</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Motivo</label>
               <textarea
-                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-400"
                 rows="4"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Escribe el motivo para devolver..."
               />
             </div>
+
             <div className="flex justify-end gap-3">
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm" onClick={() => setDevolverOpen(false)}>
+              <button
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+                onClick={() => setDevolverOpen(false)}
+              >
                 Cancelar
               </button>
-              <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium" onClick={handleDevolver} disabled={saving}>
+              <button
+                className="!rounded-lg !bg-orange-500 !px-4 !py-2 !text-sm !font-medium !text-white !transition-colors hover:!bg-orange-600 active:!bg-orange-700"
+                onClick={handleDevolver}
+                disabled={saving}
+              >
                 {saving ? "Procesando..." : "Devolver"}
               </button>
             </div>

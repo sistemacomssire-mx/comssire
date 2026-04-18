@@ -1,10 +1,140 @@
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+
+import Swal from "sweetalert2";
 import AppLayout from "../../../layouts/AppLayout/AppLayout";
 import { useNavigate } from "react-router-dom";
 import { apiGetAlmacenes, apiGetExistenciasPorAlmacen } from "../api/inventarios.api";
 import { apiCrearToma } from "../api/tomas.api";
 import { authStorage } from "../../Auth/store/auth.storage";
+
+const swalBase = {
+  heightAuto: false,
+  allowOutsideClick: false,
+  backdrop: "rgba(15, 23, 42, 0.22)",
+  customClass: {
+    popup: "swal2-popup-custom",
+    title: "swal2-title-custom",
+    htmlContainer: "swal2-text-custom",
+    actions: "swal2-actions-custom",
+    confirmButton: "swal2-confirm-custom",
+    cancelButton: "swal2-cancel-custom",
+  },
+  buttonsStyling: true,
+};
+
+function extractApiError(error, fallback = "Ocurrió un error inesperado.") {
+  const status = error?.response?.status;
+  const data = error?.response?.parsedData ?? error?.response?.data;
+
+  let message = "";
+
+  if (typeof data === "string") {
+    message = data;
+  } else if (Array.isArray(data?.errors)) {
+    message = data.errors.join(" ");
+  } else if (data?.errors && typeof data.errors === "object") {
+    message = Object.values(data.errors).flat().join(" ");
+  } else {
+    message = data?.message || data?.title || data?.detail || data?.error || "";
+  }
+
+  if (typeof message === "string") {
+    message = message.trim();
+  }
+
+  if (message && !/^\d+$/.test(message)) return message;
+
+  const statusMap = {
+    400: "La solicitud no es válida. Revisa los datos enviados.",
+    401: "Tu sesión expiró o no tienes autorización. Vuelve a iniciar sesión.",
+    403: "No tienes permisos para realizar esta acción.",
+    404: "No se encontró la información solicitada.",
+    405: "La operación no está permitida por el servidor.",
+    409: "La operación entró en conflicto con el estado actual de la información.",
+    422: "No fue posible procesar la solicitud con los datos enviados.",
+    500: "El servidor presentó un problema interno. Intenta nuevamente.",
+    502: "El servidor no respondió correctamente. Intenta nuevamente.",
+    503: "El servicio no está disponible temporalmente.",
+    504: "El servidor tardó demasiado en responder. Intenta nuevamente.",
+  };
+
+  return statusMap[status] || fallback;
+}
+
+function showSuccess(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "success",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#ea580c",
+  });
+}
+
+function showInfo(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "info",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#2563eb",
+  });
+}
+
+function showWarning(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "warning",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#ea580c",
+  });
+}
+
+function showError(title, errorOrText, fallback = "No fue posible completar la operación.") {
+  const text = typeof errorOrText === "string"
+    ? errorOrText
+    : extractApiError(errorOrText, fallback);
+
+  return Swal.fire({
+    ...swalBase,
+    icon: "error",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#dc2626",
+  });
+}
+
+function confirmAction({
+  title,
+  text,
+  icon = "warning",
+  confirmButtonText = "Sí, continuar",
+  cancelButtonText = "Cancelar",
+}) {
+  return Swal.fire({
+    ...swalBase,
+    icon,
+    title,
+    text,
+    showCancelButton: true,
+    confirmButtonText,
+    cancelButtonText,
+    confirmButtonColor: "#ea580c",
+    cancelButtonColor: "#64748b",
+    reverseButtons: true,
+    focusCancel: true,
+  });
+}
+
+
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 350;
+const API_PAGE_SIZE = 500;
 
 export default function InventarioPage() {
   const nav = useNavigate();
@@ -22,18 +152,17 @@ export default function InventarioPage() {
   const [cveAlm, setCveAlm] = useState("");
 
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [soloConExistencia, setSoloConExistencia] = useState(false);
   const [orderDir, setOrderDir] = useState("desc");
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50);
-
-  const [res, setRes] = useState({ total: 0, page: 1, pageSize: 50, items: [] });
+  const [allItems, setAllItems] = useState([]);
 
   const canFetch = useMemo(() => Number(cveAlm) > 0, [cveAlm]);
 
   useEffect(() => {
     if (!canView) {
-      toast.error("No tienes permiso para ver inventarios.");
+      showError("Acceso denegado", "No tienes permiso para ver inventarios.");
       nav("/home");
       return;
     }
@@ -43,60 +172,135 @@ export default function InventarioPage() {
         const data = await apiGetAlmacenes();
         setAlmacenes(data);
       } catch (e) {
-        toast.error(e?.response?.data || "Error cargando almacenes");
+        await showError("Error al cargar almacenes", e, "No se pudieron cargar los almacenes disponibles.");
       }
     })();
   }, [canView, nav]);
 
-  async function cargar(nextPage = page) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQ(q.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [q]);
+
+  async function cargarTodo() {
     if (!canFetch) return;
 
     try {
       setLoading(true);
-      const data = await apiGetExistenciasPorAlmacen(Number(cveAlm), {
-        q: q || undefined,
-        page: nextPage,
-        pageSize,
-        soloConExistencia,
-        orderBy: "exist",
-        orderDir,
-      });
-      setRes(data);
-      setPage(data.page);
+
+      let currentPage = 1;
+      let total = 0;
+      let collected = [];
+
+      do {
+        const data = await apiGetExistenciasPorAlmacen(Number(cveAlm), {
+          page: currentPage,
+          pageSize: API_PAGE_SIZE,
+          soloConExistencia,
+          orderBy: "exist",
+          orderDir,
+        });
+
+        total = Number(data?.total || 0);
+        collected = collected.concat(Array.isArray(data?.items) ? data.items : []);
+        currentPage += 1;
+      } while (collected.length < total);
+
+      setAllItems(collected);
+      setPage(1);
     } catch (e) {
-      toast.error(e?.response?.data || "Error cargando existencias");
+      await showError("Error al cargar existencias", e, "No se pudieron consultar las existencias del almacén.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!canFetch) return;
-    setPage(1);
-    cargar(1);
-  }, [cveAlm]);
+    if (!canFetch) {
+      setAllItems([]);
+      setPage(1);
+      return;
+    }
 
-  async function onBuscar(e) {
-    e.preventDefault();
+    cargarTodo();
+  }, [cveAlm, soloConExistencia, orderDir]);
+
+  useEffect(() => {
     setPage(1);
-    await cargar(1);
-  }
+  }, [debouncedQ]);
 
   async function onCrearToma() {
-    if (!canCrearToma) return toast.error("No tienes permiso para crear toma.");
-    if (!canFetch) return toast.error("Selecciona un almacén.");
+    if (!canCrearToma) {
+      await showError("Acceso denegado", "No tienes permiso para crear una toma física.");
+      return;
+    }
+    if (!canFetch) {
+      await showWarning("Almacén requerido", "Selecciona un almacén antes de crear la toma.");
+      return;
+    }
+
+    const selected = almacenes.find((a) => String(a.cveAlm) === String(cveAlm));
+    const confirmation = await confirmAction({
+      title: "¿Crear toma física?",
+      text: `Se iniciará una nueva toma para ${selected ? `${selected.cveAlm} - ${selected.descr}` : `el almacén ${cveAlm}`}.`,
+      icon: "question",
+      confirmButtonText: "Sí, crear toma",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirmation.isConfirmed) return;
 
     try {
       setLoading(true);
       const r = await apiCrearToma(Number(cveAlm));
-      toast.success(`Toma creada (#${r.tomaId})`);
+      await showSuccess("Toma creada", `La toma #${r.tomaId} fue creada correctamente.`);
       nav(`/inventario/tomas/${r.tomaId}`);
     } catch (e) {
-      toast.error(e?.response?.data || "No se pudo crear la toma");
+      await showError("No se pudo crear la toma", e, "No fue posible crear la toma física para el almacén seleccionado.");
     } finally {
       setLoading(false);
     }
   }
+
+  const filteredItems = useMemo(() => {
+    const term = debouncedQ.toLowerCase();
+
+    if (!term) return allItems;
+
+    return allItems.filter((item) => {
+      const codigo = String(item?.cveArt || "").toLowerCase();
+      const descripcion = String(item?.descr || "").toLowerCase();
+      return codigo.includes(term) || descripcion.includes(term);
+    });
+  }, [allItems, debouncedQ]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  }, [filteredItems.length]);
+
+  const pagedItems = useMemo(() => {
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredItems.slice(start, start + PAGE_SIZE);
+  }, [filteredItems, page, totalPages]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const res = useMemo(() => {
+    return {
+      total: filteredItems.length,
+      page,
+      pageSize: PAGE_SIZE,
+      items: pagedItems,
+    };
+  }, [filteredItems.length, page, pagedItems]);
 
   const getStockStatus = (exist, min, max) => {
     if (exist <= 0) return "text-red-400";
@@ -105,10 +309,12 @@ export default function InventarioPage() {
     return "text-emerald-400";
   };
 
+  const startRow = res.total === 0 ? 0 : (Math.min(page, totalPages) - 1) * PAGE_SIZE + 1;
+  const endRow = res.total === 0 ? 0 : Math.min(Math.min(page, totalPages) * PAGE_SIZE, res.total);
+
   return (
     <AppLayout>
       <div className="w-full space-y-4">
-        {/* Header con título y botón de crear toma */}
         <div className="bg-slate-800/30 rounded p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -124,9 +330,9 @@ export default function InventarioPage() {
             </div>
 
             {canCrearToma && (
-              <button 
-                className="px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded flex items-center gap-1.5" 
-                onClick={onCrearToma} 
+              <button
+                className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={onCrearToma}
                 disabled={loading || !canFetch}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,10 +344,8 @@ export default function InventarioPage() {
           </div>
         </div>
 
-        {/* Panel de filtros */}
         <div className="bg-slate-800/30 rounded p-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-            {/* Selector de almacén */}
             <div className="md:col-span-3">
               <label className="block text-xs text-slate-500 mb-1">Almacén</label>
               <select
@@ -158,30 +362,39 @@ export default function InventarioPage() {
               </select>
             </div>
 
-            {/* Buscador */}
             <div className="md:col-span-4">
               <label className="block text-xs text-slate-500 mb-1">Buscar producto</label>
-              <form onSubmit={onBuscar} className="flex gap-2">
-                <input
-                  className="flex-1 px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Código o descripción..."
-                />
-                <button 
-                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded flex items-center gap-1" 
-                  type="submit" 
-                  disabled={loading || !canFetch}
-                >
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>Buscar</span>
-                </button>
-              </form>
+                </span>
+                <input
+                  className="w-full pl-9 pr-10 px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar por código o descripción..."
+                  disabled={!canFetch}
+                />
+                {q && (
+                  <button
+                    type="button"
+                    onClick={() => setQ("")}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-white"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                La búsqueda se actualiza automáticamente mientras escribes.
+              </p>
             </div>
 
-            {/* Filtros adicionales */}
             <div className="md:col-span-3">
               <label className="block text-xs text-slate-500 mb-1">Opciones</label>
               <div className="flex gap-2">
@@ -207,12 +420,11 @@ export default function InventarioPage() {
               </div>
             </div>
 
-            {/* Botón actualizar */}
             <div className="md:col-span-2 flex items-end">
               <button
-                className="w-full px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded flex items-center justify-center gap-1"
+                className="w-full px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-500 text-white rounded flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 type="button"
-                onClick={() => cargar(1)}
+                onClick={cargarTodo}
                 disabled={loading || !canFetch}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,13 +435,11 @@ export default function InventarioPage() {
             </div>
           </div>
 
-          {/* Total de registros */}
           <div className="mt-3 text-xs text-slate-500">
             Total: <span className="text-white font-medium">{res.total}</span> productos
           </div>
         </div>
 
-        {/* Tabla de existencias */}
         <div className="bg-slate-800/30 rounded overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -266,7 +476,7 @@ export default function InventarioPage() {
                         <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                         </svg>
-                        <span>No hay datos disponibles</span>
+                        <span>{debouncedQ ? "No hay productos que coincidan con la búsqueda" : "No hay datos disponibles"}</span>
                       </div>
                     </td>
                   </tr>
@@ -276,7 +486,7 @@ export default function InventarioPage() {
                   <tr>
                     <td colSpan={7} className="px-3 py-8 text-center text-slate-500 text-sm">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                         <span>Cargando...</span>
                       </div>
                     </td>
@@ -286,28 +496,27 @@ export default function InventarioPage() {
             </table>
           </div>
 
-          {/* Paginación */}
           <div className="px-4 py-2 border-t border-slate-700 flex items-center justify-between">
             <div className="text-xs text-slate-500">
-              Mostrando {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, res.total)} de {res.total}
+              Mostrando {startRow} - {endRow} de {res.total}
             </div>
-            
+
             <div className="flex gap-2">
               <button
                 className="px-3 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 disabled={loading || page <= 1}
-                onClick={() => cargar(page - 1)}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 <span>Anterior</span>
               </button>
-              
+
               <button
                 className="px-3 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                disabled={loading || page * pageSize >= res.total}
-                onClick={() => cargar(page + 1)}
+                disabled={loading || page >= totalPages || res.total === 0}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               >
                 <span>Siguiente</span>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

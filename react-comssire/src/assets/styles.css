@@ -407,4 +407,33 @@ body {
 .modal-alert-content .bg-red-100,
 .modal-alert-content [style*="background-color"] {
   background-color: transparent !important;
+}.btn-primary {
+  @apply bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition;
+}
+
+.btn-primary:active {
+  @apply scale-95;
+}.swal2-popup-custom {
+  border-radius: 22px !important;
+}
+
+.swal2-title {
+  color: #334155 !important;
+}
+
+.swal2-html-container {
+  color: #475569 !important;
+  font-size: 16px !important;
+}
+
+.swal2-actions {
+  gap: 12px !important;
+}
+
+.swal2-styled.swal2-confirm,
+.swal2-styled.swal2-cancel {
+  border-radius: 12px !important;
+  padding: 10px 18px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
 }

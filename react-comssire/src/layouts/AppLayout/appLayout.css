@@ -241,9 +241,8 @@ nav:first-child {
 body,
 html,
 [class*="page-content"],
-[class*="PageContent"],
-[class*="container"],
-[class*="Container"] {
+[class*="PageContent"]
+ {
   background-color: #f8fafc !important;
 }
 

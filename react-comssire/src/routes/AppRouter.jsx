@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LoginPage, CambiarPasswordPage } from "../modules/Auth";
 import RequireAuth from "../modules/Auth/components/RequireAuth";
-
+import {
+  ComprasRemisionPage,
+  HistorialComprasRemisionPage,
+} from "../modules/ComprasRemision";
 import { HomePage } from "../modules/Home";
 import {
   ComprasPage,
@@ -57,7 +60,23 @@ export default function AppRouter() {
             </RequireAuth>
           }
         />
+<Route
+  path="/compras-remision"
+  element={
+    <RequireAuth>
+      <ComprasRemisionPage />
+    </RequireAuth>
+  }
+/>
 
+<Route
+  path="/compras-remision/historial"
+  element={
+    <RequireAuth>
+      <HistorialComprasRemisionPage />
+    </RequireAuth>
+  }
+/>
         {/* ✅ APROBACIONES */}
         <Route
           path="/compras/aprobaciones"

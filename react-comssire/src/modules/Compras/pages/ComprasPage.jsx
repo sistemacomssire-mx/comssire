@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
+import Swal from "sweetalert2";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../../layouts/AppLayout/AppLayout";
 import { comprasApi } from "../api/compras.api";
@@ -69,27 +70,86 @@ function toDateInputValue(value) {
   return `${y}-${m}-${day}`;
 }
 
-function confirmToast(message, opts = {}) {
-  return new Promise((resolve) => {
-    const id = toast(message, {
-      duration: Infinity,
-      ...opts,
-      action: {
-        label: opts.okText || "Sí",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(true);
-        },
-      },
-      cancel: {
-        label: opts.cancelText || "No",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(false);
-        },
-      },
-    });
+const swalBase = {
+  backdrop: "rgba(15, 23, 42, 0.22)",
+  background: "#ffffff",
+  heightAuto: false,
+  allowOutsideClick: false,
+  customClass: {
+    popup: "swal2-popup-custom",
+    title: "swal2-title-custom",
+    htmlContainer: "swal2-text-custom",
+    actions: "swal2-actions-custom",
+    confirmButton: "swal2-confirm-custom",
+    cancelButton: "swal2-cancel-custom",
+  },
+  buttonsStyling: true,
+};
+
+function getErrorMessage(e, fallback) {
+  const nice = getNiceError(e);
+  if (typeof nice === "string") return nice || fallback;
+  return nice?.message || fallback;
+}
+
+function showSuccess(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "success",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#ea580c",
   });
+}
+
+function showError(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "error",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#dc2626",
+  });
+}
+
+function showInfo(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "info",
+    title,
+    text,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#2563eb",
+  });
+}
+
+function showWarning(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "warning",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#ea580c",
+  });
+}
+
+function confirmToast(message, opts = {}) {
+  return Swal.fire({
+    ...swalBase,
+    icon: opts.icon || "warning",
+    title: opts.title || "Confirmar acción",
+    text: message,
+    showCancelButton: true,
+    confirmButtonText: opts.okText || "Sí",
+    cancelButtonText: opts.cancelText || "Cancelar",
+    confirmButtonColor: opts.confirmButtonColor || "#ea580c",
+    cancelButtonColor: opts.cancelButtonColor || "#64748b",
+    reverseButtons: true,
+    focusCancel: true,
+  }).then((r) => r.isConfirmed);
 }
 
 // ========== COMPONENTE PRINCIPAL ==========
@@ -220,6 +280,45 @@ export default function ComprasPage() {
   );
 
   const shouldForceExportada = isAdmin && isCompraExportada;
+
+  const getWarehouseKey = (a) =>
+    String(a?.cveAlm ?? a?.CveAlm ?? a?.numAlm ?? a?.NumAlm ?? "").trim();
+
+  const getWarehouseNameByKey = (key) => {
+    const normalized = String(key ?? "").trim();
+    if (!normalized) return "sin almacén";
+
+    const found = (almacenes || []).find(
+      (a) => getWarehouseKey(a) === normalized
+    );
+
+    if (!found) return normalized;
+
+    return String(
+      found?.descr ??
+        found?.Descr ??
+        found?.nombre ??
+        found?.Nombre ??
+        found?.descripcion ??
+        found?.Descripcion ??
+        normalized
+    ).trim();
+  };
+
+  const getLineDisplayName = (line) => {
+    const descripcion = String(
+      line?.desc ??
+        line?.descr ??
+        line?.descripcion ??
+        line?.Descripcion ??
+        ""
+    ).trim();
+
+    if (descripcion) return descripcion;
+
+    const codigo = String(line?.codigo ?? line?.CveArt ?? "").trim();
+    return codigo ? `pieza ${codigo}` : "pieza seleccionada";
+  };
 
   // ========== FUNCIONES DE UTILIDAD ==========
   const clearDraft = () => {
@@ -366,8 +465,8 @@ export default function ComprasPage() {
     return id;
   };
 
-  // ========== REMAPEO DE LÍNEAS ==========
-  const remapCompraToLines = (compraActualizada, fallbackAlmacen = "") => {
+  // ========== REMAPEO DE LÍNEAS (ASYNC: obtiene descripción del catálogo) ==========
+  const remapCompraToLines = async (compraActualizada, fallbackAlmacen = "") => {
     const partidas = compraActualizada?.partidas ?? compraActualizada?.Partidas ?? [];
     const arr = Array.isArray(partidas) ? partidas : [];
 
@@ -377,29 +476,57 @@ export default function ComprasPage() {
       fallbackAlmacen ??
       "";
 
-    return arr.map((p) => {
-      const partidaId = p?.id ?? p?.Id ?? null;
-      const codigo = String(p?.cveArt ?? p?.CveArt ?? "").trim();
-      const cant = Number(p?.cantTotal ?? p?.CantTotal ?? 0);
-      const precio = Number(p?.costoUnitario ?? p?.CostoUnitario ?? 0);
-      
-      // Obtener la descripción del producto
-      const descripcion = p?.descripcion ?? p?.Descripcion ?? p?.producto?.descripcion ?? p?.producto?.Descripcion ?? "";
+    const lines = await Promise.all(
+      arr.map(async (p) => {
+        const partidaId = p?.id ?? p?.Id ?? null;
+        const codigo = String(p?.cveArt ?? p?.CveArt ?? "").trim();
+        const cant = Number(p?.cantTotal ?? p?.CantTotal ?? 0);
+        const precio = Number(p?.costoUnitario ?? p?.CostoUnitario ?? 0);
 
-      const rep = p?.repartos ?? p?.Repartos ?? [];
-      const repArr = Array.isArray(rep) ? rep : [];
-      const first = repArr.length ? repArr[0] : null;
-      const wh = first?.numAlm ?? first?.NumAlm ?? almaDef ?? "";
+        // Intentar obtener descripción del propio objeto primero
+        let descripcion =
+          p?.descr ||
+          p?.Descr ||
+          p?.descripcion ||
+          p?.Descripcion ||
+          p?.producto?.descr ||
+          p?.producto?.Descr ||
+          p?.producto?.descripcion ||
+          p?.producto?.Descripcion ||
+          "";
 
-      return {
-        backendPartidaId: partidaId,
-        codigo,
-        desc: descripcion,
-        cant,
-        precio,
-        warehouse: String(wh ?? ""),
-      };
-    });
+        // Si no viene en la partida, consultarla al catálogo de productos
+        if (!descripcion && codigo) {
+          try {
+            const prod = await comprasApi.getProductoByCodigo(codigo);
+            descripcion =
+              prod?.descr ??
+              prod?.Descr ??
+              prod?.descripcion ??
+              prod?.Descripcion ??
+              "";
+          } catch (e) {
+            console.warn("[COMPRAS] No se pudo obtener descripción para:", codigo, e);
+          }
+        }
+
+        const rep = p?.repartos ?? p?.Repartos ?? [];
+        const repArr = Array.isArray(rep) ? rep : [];
+        const first = repArr.length ? repArr[0] : null;
+        const wh = first?.numAlm ?? first?.NumAlm ?? almaDef ?? "";
+
+        return {
+          backendPartidaId: partidaId,
+          codigo,
+          desc: descripcion,
+          cant,
+          precio,
+          warehouse: String(wh ?? ""),
+        };
+      })
+    );
+
+    return lines;
   };
 
   const loadFactura = async (id) => {
@@ -434,12 +561,12 @@ export default function ComprasPage() {
 
   const handleUploadFactura = async () => {
     if (isAdmin) {
-      toast.error("El admin no puede anexar factura en esta compra.");
+      await showWarning("Acción no permitida", "El admin no puede anexar factura en esta compra.");
       return;
     }
 
     if (!facturaFile) {
-      toast.error("Selecciona una imagen primero.");
+      await showWarning("Imagen requerida", "Selecciona una imagen primero.");
       return;
     }
 
@@ -453,13 +580,12 @@ export default function ComprasPage() {
       setFacturaFile(null);
       if (facturaPreview) window.URL.revokeObjectURL(facturaPreview);
       setFacturaPreview("");
-      toast.success("Factura subida correctamente.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Factura subida", "La factura se subió correctamente.");
     } catch (e) {
       console.error("[COMPRAS] upload factura error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo subir la factura.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo subir la factura", getErrorMessage(e, "No se pudo subir la factura."));
     } finally {
       setSubiendoFactura(false);
     }
@@ -469,8 +595,10 @@ export default function ComprasPage() {
     if (!compraId) return;
 
     const ok = await confirmToast("¿Eliminar la factura adjunta?", {
+      title: "Eliminar factura",
       okText: "Eliminar",
       cancelText: "Cancelar",
+      confirmButtonColor: "#dc2626",
     });
 
     if (!ok) return;
@@ -479,13 +607,12 @@ export default function ComprasPage() {
     try {
       await comprasApi.deleteFactura(compraId);
       setFacturaInfo(null);
-      toast.success("Factura eliminada.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Factura eliminada", "La factura adjunta se eliminó correctamente.");
     } catch (e) {
       console.error("[COMPRAS] delete factura error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo eliminar la factura.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo eliminar la factura", getErrorMessage(e, "No se pudo eliminar la factura."));
     }
   };
 
@@ -501,11 +628,13 @@ export default function ComprasPage() {
     }
 
     if (lines.length > 0) {
+      const nombreNuevoAlmacen = getWarehouseNameByKey(nuevoAlmacen);
       const ok = await confirmToast(
-        "¿Deseas actualizar también el almacén de todas las partidas existentes?",
+        `El almacén principal cambiará a ${nombreNuevoAlmacen}. ¿Deseas actualizar también el almacén de todas las partidas existentes?`,
         { 
+          title: "Cambiar almacén principal",
           okText: "Sí, actualizar todas", 
-          cancelText: "No, solo el encabezado" 
+          cancelText: "No, solo encabezado" 
         }
       );
 
@@ -514,7 +643,7 @@ export default function ComprasPage() {
           ...line,
           warehouse: nuevoAlmacen
         })));
-        toast.success("Almacén actualizado en todas las partidas");
+        await showSuccess("Almacenes sincronizados", "Se actualizó el almacén de todas las partidas existentes.");
       }
     }
 
@@ -524,16 +653,28 @@ export default function ComprasPage() {
   };
 
   // ========== HANDLER PARA SINCRONIZAR ALMACENES ==========
-  const handleSyncWarehouses = () => {
+  const handleSyncWarehouses = async () => {
     if (!almacenSel) {
-      toast.error("Selecciona un almacén primero");
+      return showWarning("Almacén requerido", "Selecciona un almacén primero.");
       return;
     }
 
     if (lines.length === 0) {
-      toast.info("No hay partidas para sincronizar");
+      return showInfo("Sin partidas", "No hay partidas para sincronizar.");
       return;
     }
+
+    const nombreAlmacen = getWarehouseNameByKey(almacenSel);
+    const ok = await confirmToast(
+      `Todas las partidas usarán el almacén ${nombreAlmacen}.`,
+      {
+        title: "Sincronizar almacenes",
+        okText: "Sí, sincronizar",
+        cancelText: "Cancelar",
+      }
+    );
+
+    if (!ok) return;
 
     setLines(prev => prev.map(line => ({
       ...line,
@@ -541,7 +682,7 @@ export default function ComprasPage() {
     })));
 
     window.__COMSSIRE_DIRTY = true;
-    toast.success("Todas las partidas ahora usan el almacén: " + almacenSel);
+    await showSuccess("Partidas sincronizadas", `Todas las partidas ahora usan el almacén: ${nombreAlmacen}.`);
   };
 
   // ========== ACTUALIZAR ALMACÉN DIRECTAMENTE EN BD ==========
@@ -551,12 +692,26 @@ export default function ComprasPage() {
       return;
     }
 
+    const lineToUpdate = lines[lineIndex];
+    const nombrePieza = getLineDisplayName(lineToUpdate);
+    const nombreNuevoAlmacen = getWarehouseNameByKey(nuevoAlmacen);
+
+    const ok = await confirmToast(
+      `La partida "${nombrePieza}" se moverá al almacén ${nombreNuevoAlmacen}.`,
+      {
+        title: "Actualizar almacén",
+        okText: "Sí, actualizar",
+        cancelText: "Cancelar",
+      }
+    );
+
+    if (!ok) return;
+
     const t = toast.loading("Actualizando almacén...");
 
     try {
       setSaving(true);
       
-      const lineToUpdate = lines[lineIndex];
       if (!lineToUpdate) return;
 
       const payload = buildPartidaPayload({
@@ -576,7 +731,8 @@ export default function ComprasPage() {
 
       handleChangeLineWarehouse(lineIndex, nuevoAlmacen);
 
-      toast.success("Almacén actualizado en BD", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Almacén actualizado", `La partida "${nombrePieza}" ahora usa el almacén ${nombreNuevoAlmacen}.`);
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
         toast.dismiss(t);
@@ -584,10 +740,8 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] error actualizando almacén:", e);
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo actualizar el almacén",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo actualizar el almacén", getErrorMessage(e, "No se pudo actualizar el almacén."));
     } finally {
       setSaving(false);
     }
@@ -627,7 +781,7 @@ export default function ComprasPage() {
         }
       } catch (e) {
         console.error("[COMPRAS] catálogos error", getNiceError(e));
-        toast.error("No se pudieron cargar catálogos.");
+        await showError("Catálogos no disponibles", getErrorMessage(e, "No se pudieron cargar catálogos."));
       } finally {
         setLoadingCatalogos(false);
       }
@@ -687,15 +841,17 @@ export default function ComprasPage() {
           String(compra?.observaciones ?? compra?.Observaciones ?? "")
         );
 
-        setLines(remapCompraToLines(compra, almaDef));
+        setLines(await remapCompraToLines(compra, almaDef));
         await loadFactura(editCompraId);
 
-        toast.success("Compra cargada.", { id: t });
+        toast.dismiss(t);
+        await showSuccess("Compra cargada", "La compra se cargó correctamente para edición.");
         navigate("/compras", { replace: true, state: {} });
         markSaved();
       } catch (e) {
         console.error("[COMPRAS] cargar edición error", getNiceError(e));
-        toast.error("No se pudo cargar la compra.", { id: t });
+        toast.dismiss(t);
+        await showError("No se pudo cargar la compra", getErrorMessage(e, "No se pudo cargar la compra."));
         editLoadRef.current = false;
       }
     })();
@@ -725,7 +881,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success("Guardado.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Compra guardada", "Los cambios se guardaron correctamente.");
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
         toast.dismiss(t);
@@ -733,10 +890,8 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] guardar cabecera error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo guardar.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo guardar", getErrorMessage(e, "No se pudo guardar."));
     } finally {
       setSaving(false);
     }
@@ -760,7 +915,7 @@ export default function ComprasPage() {
       setExistencias(Array.isArray(ex) ? ex : []);
     } catch (e) {
       console.error("[COMPRAS] lookup producto error", getNiceError(e));
-      toast.error("No se pudo buscar el producto.");
+      await showError("Búsqueda fallida", getErrorMessage(e, "No se pudo buscar el producto."));
       setExistencias([]);
     }
   };
@@ -794,7 +949,8 @@ export default function ComprasPage() {
         .filter((r) => r.warehouse && r.qty > 0);
 
       if (!clean.length) {
-        toast.warning("No hay cantidades para repartir.", { id: t });
+        toast.dismiss(t);
+        await showWarning("Sin cantidades válidas", "No hay cantidades para repartir.");
         return;
       }
 
@@ -825,7 +981,7 @@ export default function ComprasPage() {
         )
       );
       
-      const nuevasLineas = remapCompraToLines(compraActualizada, almacenSel);
+      const nuevasLineas = await remapCompraToLines(compraActualizada, almacenSel);
       
       const lineasConDesc = nuevasLineas.map(line => {
         if (line.codigo === splitDraft.codigo && !line.desc) {
@@ -845,7 +1001,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success("Reparto creado.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Reparto creado", `La pieza "${descripcionSplit || `pieza ${splitDraft.codigo}`}" se repartió correctamente por almacén.`);
       closeSplit();
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
@@ -854,10 +1011,8 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] split save error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo crear el reparto.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo crear el reparto", getErrorMessage(e, "No se pudo crear el reparto."));
     } finally {
       setSaving(false);
       splitBusyRef.current = false;
@@ -868,21 +1023,22 @@ export default function ComprasPage() {
     if (busyRef.current) return;
 
     const codigo = String(piezaCodigo || "").trim();
-    if (!codigo) return toast.error("Falta clave del producto.");
+    if (!codigo) return showWarning("Clave requerida", "Falta clave del producto.");
     if (!almacenLineaSel) {
-      return toast.error("Selecciona almacén para la partida.");
+      return showWarning("Almacén requerido", "Selecciona almacén para la partida.");
     }
 
     const cant = Number(piezaCant || 0);
     if (!Number.isFinite(cant) || cant <= 0) {
-      return toast.error("Cantidad inválida.");
+      return showWarning("Cantidad inválida", "La cantidad debe ser mayor a cero.");
     }
 
     const descripcionActual = String(piezaDesc || "").trim();
 
     if (cant >= 2) {
+      const nombrePieza = descripcionActual || `pieza ${codigo}`;
       const ok = await confirmToast(
-        `Vas a agregar cantidad ${cant}. ¿Quieres repartir a varios almacenes?`,
+        `Vas a agregar ${cant} unidad(es) de "${nombrePieza}". ¿Quieres repartirlas en varios almacenes?`,
         { okText: "Repartir", cancelText: "No" }
       );
 
@@ -927,7 +1083,7 @@ export default function ComprasPage() {
         )
       );
       
-      const nuevasLineas = remapCompraToLines(compraActualizada, almacenSel);
+      const nuevasLineas = await remapCompraToLines(compraActualizada, almacenSel);
       
       const lineasConDesc = nuevasLineas.map(line => {
         if (line.codigo === codigo && !line.desc) {
@@ -947,7 +1103,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success("Partida agregada.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Partida agregada", `La partida "${descripcionActual || `pieza ${codigo}`}" se agregó correctamente.`);
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
         toast.dismiss(t);
@@ -955,10 +1112,8 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] add partida error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo agregar la partida.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo agregar la partida", getErrorMessage(e, "No se pudo agregar la partida."));
     } finally {
       setSaving(false);
       busyRef.current = false;
@@ -968,8 +1123,22 @@ export default function ComprasPage() {
   const handleRemoveLine = async (line) => {
     const partidaId = line?.backendPartidaId;
 
+    const nombrePieza = getLineDisplayName(line);
+    const ok = await confirmToast(
+      `Se eliminará la partida "${nombrePieza}". ¿Deseas continuar?`,
+      {
+        title: "Eliminar partida",
+        okText: "Sí, eliminar",
+        cancelText: "Cancelar",
+        confirmButtonColor: "#dc2626",
+      }
+    );
+
+    if (!ok) return;
+
     if (!compraId || !partidaId) {
       setLines((prev) => prev.filter((x) => x !== line));
+      await showSuccess("Partida eliminada", "La partida se eliminó correctamente.");
       return;
     }
 
@@ -990,7 +1159,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success("Partida eliminada.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Partida eliminada", "La partida se eliminó correctamente.");
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
         toast.dismiss(t);
@@ -998,16 +1168,25 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] delete partida error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo eliminar.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo eliminar la partida", getErrorMessage(e, "No se pudo eliminar."));
     } finally {
       setSaving(false);
     }
   };
 
   const handleEnviarAprobacion = async () => {
+    const ok = await confirmToast(
+      "La compra se guardará y se enviará al flujo de aprobación.",
+      {
+        title: "Enviar a aprobación",
+        okText: "Sí, enviar",
+        cancelText: "Cancelar",
+      }
+    );
+
+    if (!ok) return;
+
     const t = toast.loading("Enviando…");
 
     try {
@@ -1034,10 +1213,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success(
-        "Enviada a aprobación. Puedes capturar una nueva compra.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showSuccess("Enviada a aprobación", "La compra fue enviada a aprobación. Ya puedes capturar una nueva compra.");
       clearDraft();
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
@@ -1046,16 +1223,25 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] enviar aprobación error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo enviar.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo enviar a aprobación", getErrorMessage(e, "No se pudo enviar."));
     } finally {
       setSaving(false);
     }
   };
 
   const handleAdminSaveAndDownloadMod = async () => {
+    const ok = await confirmToast(
+      "La compra se guardará y se generará el archivo MOD para descarga.",
+      {
+        title: "Generar MOD",
+        okText: "Sí, generar",
+        cancelText: "Cancelar",
+      }
+    );
+
+    if (!ok) return;
+
     const t = toast.loading("Guardando y generando MOD…");
 
     try {
@@ -1081,7 +1267,8 @@ export default function ComprasPage() {
       markSaved();
       setForceMode(false);
 
-      toast.success("MOD descargado. Nueva compra lista.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("MOD descargado", "El archivo MOD se generó y descargó correctamente.");
       clearDraft();
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
@@ -1093,16 +1280,26 @@ export default function ComprasPage() {
         "[COMPRAS] admin guardar/descargar mod error",
         getNiceError(e)
       );
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo generar MOD.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo generar el MOD", getErrorMessage(e, "No se pudo generar MOD."));
     } finally {
       setSaving(false);
     }
   };
 
   const handleAdminSaveDraft = async () => {
+    const ok = await confirmToast(
+      "Se guardará el estado actual de la compra como borrador.",
+      {
+        title: "Guardar borrador",
+        okText: "Sí, guardar",
+        cancelText: "Cancelar",
+        icon: "question",
+      }
+    );
+
+    if (!ok) return;
+
     const t = toast.loading("Guardando borrador...");
 
     try {
@@ -1119,7 +1316,8 @@ export default function ComprasPage() {
       window.__COMSSIRE_DIRTY = false;
       markSaved();
 
-      toast.success("Borrador guardado.", { id: t });
+      toast.dismiss(t);
+      await showSuccess("Borrador guardado", "La compra se guardó como borrador.");
     } catch (e) {
       if (e.message === "Operación cancelada por el usuario") {
         toast.dismiss(t);
@@ -1127,10 +1325,8 @@ export default function ComprasPage() {
       }
       
       console.error("[COMPRAS] admin guardar borrador error", getNiceError(e));
-      toast.error(
-        e?.response?.parsedData?.message || e?.message || "No se pudo guardar el borrador.",
-        { id: t }
-      );
+      toast.dismiss(t);
+      await showError("No se pudo guardar el borrador", getErrorMessage(e, "No se pudo guardar el borrador."));
     } finally {
       setSaving(false);
     }

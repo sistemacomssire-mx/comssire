@@ -16,4 +16,67 @@ select.input option {
 input.input {
   color: #000 !important;
   background: #fff !important;
+}.swal2-container {
+  background: rgba(15, 23, 42, 0.22) !important;
+  backdrop-filter: blur(2px);
+}
+
+.swal2-popup-custom {
+  border-radius: 22px !important;
+  padding: 1.5rem !important;
+}
+
+.swal2-title-custom {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+.swal2-text-custom {
+  color: #475569 !important;
+  font-size: 16px !important;
+}
+
+.swal2-actions-custom {
+  gap: 12px !important;
+}
+
+.swal2-confirm-custom,
+.swal2-cancel-custom {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 10px 20px !important;
+  margin: 0 !important;
+}.swal2-container {
+  background: rgba(15, 23, 42, 0.22) !important;
+  backdrop-filter: blur(2px);
+}
+
+.swal2-popup-custom {
+  border-radius: 22px !important;
+  padding: 1.5rem !important;
+}
+
+.swal2-title-custom {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+.swal2-text-custom {
+  color: #475569 !important;
+  font-size: 16px !important;
+}
+
+.swal2-actions-custom {
+  gap: 12px !important;
+}
+
+.swal2-confirm-custom,
+.swal2-cancel-custom {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 10px 20px !important;
+  margin: 0 !important;
+}.swal2-container {
+  background: rgba(15, 23, 42, 0.22) !important;
+  backdrop-filter: blur(2px);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import AppLayout from "../../../layouts/AppLayout/AppLayout";
 import comprasApi from "../api/compras.api";
 import { getAuthFromStorage } from "../utils/auth";
@@ -46,27 +47,254 @@ function getNiceError(e) {
   return e?.message || e;
 }
 
-function confirmToast(message, opts = {}) {
-  return new Promise((resolve) => {
-    const id = toast(message, {
-      duration: Infinity,
-      ...opts,
-      action: {
-        label: opts.okText || "Sí",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(true);
-        },
-      },
-      cancel: {
-        label: opts.cancelText || "No",
-        onClick: () => {
-          toast.dismiss(id);
-          resolve(false);
-        },
-      },
-    });
+const swalBase = {
+  backdrop: "rgba(15, 23, 42, 0.22)",
+  background: "#ffffff",
+  heightAuto: false,
+  allowOutsideClick: false,
+  customClass: {
+    popup: "swal2-popup-custom",
+    title: "swal2-title-custom",
+    htmlContainer: "swal2-text-custom",
+    actions: "swal2-actions-custom",
+    confirmButton: "swal2-confirm-custom",
+    cancelButton: "swal2-cancel-custom",
+  },
+  buttonsStyling: true,
+};
+
+function niceErrorText(e, fallback) {
+  const data = getNiceError(e);
+  if (typeof data === "string") return data;
+  return data?.message || data?.Message || fallback;
+}
+
+function showError(title, text = "") {
+  return Swal.fire({
+    ...swalBase,
+    icon: "error",
+    title,
+    text,
+    confirmButtonText: "Entendido",
+    confirmButtonColor: "#dc2626",
   });
+}
+
+function confirmAction({ title, text, confirmButtonText = "Sí", cancelButtonText = "Cancelar", icon = "warning" }) {
+  return Swal.fire({
+    ...swalBase,
+    icon,
+    title,
+    text,
+    showCancelButton: true,
+    confirmButtonText,
+    cancelButtonText,
+    confirmButtonColor: "#ea580c",
+    cancelButtonColor: "#64748b",
+    reverseButtons: true,
+    focusCancel: true,
+  });
+}
+
+/* ─── ESTADOS UNIFICADOS ───────────────────────────────────── */
+function getStatusStyles(estadoValue) {
+  switch (String(estadoValue || "").trim()) {
+    case "Borrador":
+      return {
+        badge: {
+          backgroundColor: "#f8fafc",
+          color: "#475569",
+          border: "1px solid #cbd5e1",
+        },
+        dot: { backgroundColor: "#94a3b8" },
+        label: "Borrador",
+      };
+    case "Enviada":
+      return {
+        badge: {
+          backgroundColor: "#eff6ff",
+          color: "#2563eb",
+          border: "1px solid #93c5fd",
+        },
+        dot: { backgroundColor: "#3b82f6" },
+        label: "Enviada",
+      };
+    case "Aprobada":
+      return {
+        badge: {
+          backgroundColor: "#ecfdf5",
+          color: "#047857",
+          border: "1px solid #86efac",
+        },
+        dot: { backgroundColor: "#10b981" },
+        label: "Aprobada",
+      };
+    case "Rechazada":
+      return {
+        badge: {
+          backgroundColor: "#fef2f2",
+          color: "#dc2626",
+          border: "1px solid #fca5a5",
+        },
+        dot: { backgroundColor: "#ef4444" },
+        label: "Rechazada",
+      };
+    case "Exportada":
+      return {
+        badge: {
+          backgroundColor: "#fff7ed",
+          color: "#ea580c",
+          border: "1px solid #fdba74",
+        },
+        dot: { backgroundColor: "#f97316" },
+        label: "Exportada",
+      };
+    default:
+      return {
+        badge: {
+          backgroundColor: "#f8fafc",
+          color: "#475569",
+          border: "1px solid #cbd5e1",
+        },
+        dot: { backgroundColor: "#94a3b8" },
+        label: estadoValue || "—",
+      };
+  }
+}
+
+const cardStyle = {
+  backgroundColor: "#ffffff",
+  border: "1px solid #dbe4ee",
+  borderRadius: "20px",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)",
+};
+
+const inputStyle = {
+  backgroundColor: "#ffffff",
+  color: "#0f172a",
+  border: "1px solid #bfd0e2",
+  borderRadius: "16px",
+  minHeight: "52px",
+  boxShadow: "0 4px 14px rgba(148, 163, 184, 0.08)",
+};
+
+const orangeButtonStyle = {
+  backgroundColor: "#f97316", // orange-500
+  color: "#ffffff",
+  
+  borderRadius: "14px",
+  boxShadow: "0 6px 18px rgba(249, 115, 22, 0.28)",
+};
+
+function ActionButton({ title, onClick, disabled, tone = "slate", children }) {
+  const tones = {
+    slate: { backgroundColor: "#f8fafc", color: "#475569", borderColor: "#dbe4ee" },
+    blue: { backgroundColor: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" },
+    orange: { backgroundColor: "#fff7ed", color: "#ea580c", borderColor: "#fed7aa" },
+    green: { backgroundColor: "#f0fdf4", color: "#16a34a", borderColor: "#bbf7d0" },
+    red: { backgroundColor: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
+  };
+
+  return (
+    <button
+      type="button"
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border p-2 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+      style={tones[tone] || tones.slate}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PdfViewerModal({ open, title, url, onClose }) {
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-3 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] border bg-white shadow-2xl"
+        style={{ borderColor: "#cbd5e1" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
+          style={{ backgroundColor: "#f8fafc", borderColor: "#dbe4ee" }}
+        >
+          <div className="min-w-0 pr-2">
+            <div className="truncate text-lg font-bold" style={{ color: "#0f172a" }}>
+              {title || "PDF de compra"}
+            </div>
+            <div className="text-sm font-medium" style={{ color: "#64748b" }}>
+              Vista previa · toca Cerrar o presiona ESC
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded flex items-center gap-1.5"
+            style={{
+              ...orangeButtonStyle,
+              minHeight: "48px",
+              minWidth: "110px",
+            }}
+            title="Cerrar PDF"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <div className="flex-1 bg-slate-200 p-2 sm:p-3">
+          {url ? (
+            <iframe
+              title={title || "PDF"}
+              src={url}
+              className="h-full w-full rounded-2xl border bg-white"
+              style={{ borderColor: "#cbd5e1" }}
+            />
+          ) : (
+            <div
+              className="flex h-full items-center justify-center rounded-2xl border bg-white"
+              style={{ borderColor: "#cbd5e1" }}
+            >
+              <div className="text-center">
+                <div className="text-lg font-bold" style={{ color: "#0f172a" }}>
+                  No se pudo cargar el PDF
+                </div>
+                <div className="mt-1 text-sm" style={{ color: "#64748b" }}>
+                  Intenta abrirlo nuevamente.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function HistorialComprasPage() {
@@ -112,7 +340,7 @@ export default function HistorialComprasPage() {
       setTotal(Number(data?.total ?? 0));
     } catch (e) {
       console.error("[HISTORIAL] error", getNiceError(e));
-      toast.error("No se pudo cargar el historial.");
+      showError("No se pudo cargar el historial", niceErrorText(e, "No se pudo cargar el historial."));
       setItems([]);
       setTotal(0);
     } finally {
@@ -124,10 +352,15 @@ export default function HistorialComprasPage() {
     loadData(1);
   }, []);
 
-  const onBuscar = () => {
-    setPage(1);
-    loadData(1);
-  };
+  /* ✅ BÚSQUEDA AUTOMÁTICA */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      loadData(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [q, estado, from, to, pageSize]);
 
   const onLimpiar = () => {
     setQ("");
@@ -136,7 +369,6 @@ export default function HistorialComprasPage() {
     setTo("");
     setPageSize(20);
     setPage(1);
-    loadData(1);
   };
 
   const closePdf = () => {
@@ -168,7 +400,7 @@ export default function HistorialComprasPage() {
       setPdfOpen(true);
     } catch (e) {
       console.error("[HISTORIAL] ver pdf error", getNiceError(e));
-      toast.error("No se pudo abrir el PDF.");
+      showError("No se pudo abrir el PDF", niceErrorText(e, "No se pudo abrir el PDF."));
     }
   };
 
@@ -187,7 +419,7 @@ export default function HistorialComprasPage() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("[HISTORIAL] descargar pdf error", getNiceError(e));
-      toast.error("No se pudo descargar el PDF.");
+      showError("No se pudo descargar el PDF", niceErrorText(e, "No se pudo descargar el PDF."));
     }
   };
 
@@ -206,7 +438,7 @@ export default function HistorialComprasPage() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("[HISTORIAL] descargar mod error", getNiceError(e));
-      toast.error("No se pudo descargar el MOD.");
+      showError("No se pudo descargar el MOD", niceErrorText(e, "No se pudo descargar el MOD."));
     }
   };
 
@@ -215,290 +447,360 @@ export default function HistorialComprasPage() {
     const isExport = est.toLowerCase() === "exportada";
 
     if (isAdmin && isExport) {
-      const ok = await confirmToast(
-        "Esta compra ya fue enviada al sistema Aspel. ¿Quieres actualizarla?",
-        { okText: "Sí, actualizar", cancelText: "Cancelar" }
-      );
+      const ok = await confirmAction({
+        title: "¿Actualizar compra exportada?",
+        text: `La compra ${row.folioFactura || row.id} ya fue enviada a Aspel. ¿Deseas abrirla para actualizarla?`,
+        confirmButtonText: "Sí, actualizar",
+        cancelButtonText: "Cancelar",
+      });
 
-      if (!ok) return;
+      if (!ok.isConfirmed) return;
     }
 
     navigate("/compras", { state: { editCompraId: row.id } });
   };
 
-  const getEstadoBadgeClass = (estadoValue) => {
-    switch (estadoValue) {
-      case "Borrador":
-        return "bg-slate-100 text-slate-700 border border-slate-300";
-      case "Enviada":
-        return "bg-blue-50 text-blue-700 border border-blue-200";
-      case "Aprobada":
-        return "bg-emerald-50 text-emerald-700 border border-emerald-200";
-      case "Rechazada":
-        return "bg-red-50 text-red-700 border border-red-200";
-      case "Exportada":
-        return "bg-orange-50 text-orange-700 border border-orange-200";
-      default:
-        return "bg-slate-100 text-slate-700 border border-slate-300";
-    }
-  };
-
-  const inputClass =
-    "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)] placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10";
-
-  const softButton =
-    "inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition hover:bg-orange-100 hover:border-orange-300 shadow-[0_8px_18px_rgba(250,137,26,0.08)]";
-
-  const neutralButton =
-    "inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-400 shadow-[0_6px_16px_rgba(15,23,42,0.05)]";
-
-  const iconButtonBase =
-    "inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-all";
-
   return (
     <AppLayout>
       <Toaster position="top-right" richColors closeButton />
+      <PdfViewerModal open={pdfOpen} title={pdfTitle} url={pdfUrl} onClose={closePdf} />
 
-      <div className="w-full space-y-5">
-        <div className="overflow-hidden rounded-[1.35rem] border border-[#c7d6e6] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-[#c7d6e6] bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ea_100%)] px-5 py-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-[#5f7ea3]">
-                  Historial
-                </p>
-                <h2 className="mt-1 text-[1.25rem] font-semibold text-[#0f2742]">
-                  Historial de compras
-                </h2>
-              </div>
+      <div className="w-full space-y-5 pb-3">
+        <div className="p-5" style={cardStyle}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-2xl font-bold" style={{ color: "#0f172a" }}>
+                <svg className="h-6 w-6" style={{ color: "#10b981" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                </svg>
+                Historial de compras
+              </h2>
+              <p className="mt-1 text-sm font-medium" style={{ color: "#64748b" }}>
+                Filtros automáticos y acciones con la misma estructura visual del sistema.
+              </p>
+            </div>
 
-              <span className="inline-flex w-fit items-center rounded-full border border-[#bfd0e2] bg-[#f5f9fd] px-3 py-1.5 text-xs font-semibold text-[#557397]">
+            <div className="flex flex-wrap gap-2 self-start">
+              <span
+                className="inline-flex min-h-[44px] items-center rounded-full border px-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: "#f8fafc",
+                  borderColor: "#dbe4ee",
+                  color: "#475569",
+                }}
+              >
                 {isAdmin ? "Admin: todas las compras" : "Operador: solo tus compras"}
               </span>
             </div>
           </div>
+        </div>
 
-          <div className="bg-[linear-gradient(180deg,#ffffff_0%,#fcfdff_100%)] p-5">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-              <div className="md:col-span-3">
-                <input
-                  className={inputClass}
-                  placeholder="Folio o proveedor"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
-              </div>
+        <div className="p-5" style={cardStyle}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+            <div className="xl:col-span-2">
+              <label className="mb-1 block text-sm font-semibold" style={{ color: "#475569" }}>
+                Buscar
+              </label>
+              <input
+                className="w-full px-4 py-3 text-base outline-none"
+                style={inputStyle}
+                placeholder="Folio o proveedor"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
 
-              <div className="md:col-span-2">
-                <select
-                  className={inputClass}
-                  value={estado}
-                  onChange={(e) => setEstado(e.target.value)}
-                >
-                  <option value="Todos">Todos</option>
-                  <option value="Borrador">Borrador</option>
-                  <option value="Enviada">Enviada</option>
-                  <option value="Aprobada">Aprobada</option>
-                  <option value="Rechazada">Rechazada</option>
-                  <option value="Exportada">Exportada</option>
-                </select>
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold" style={{ color: "#475569" }}>
+                Estado
+              </label>
+              <select
+                className="w-full px-4 py-3 text-base outline-none"
+                style={inputStyle}
+                value={estado}
+                onChange={(e) => setEstado(e.target.value)}
+              >
+                <option value="Todos">Todos</option>
+                <option value="Borrador">Borrador</option>
+                <option value="Enviada">Enviada</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="Rechazada">Rechazada</option>
+                <option value="Exportada">Exportada</option>
+              </select>
+            </div>
 
-              <div className="md:col-span-2">
-                <input
-                  className={inputClass}
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold" style={{ color: "#475569" }}>
+                Desde
+              </label>
+              <input
+                className="w-full px-4 py-3 text-base outline-none"
+                style={inputStyle}
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </div>
 
-              <div className="md:col-span-2">
-                <input
-                  className={inputClass}
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold" style={{ color: "#475569" }}>
+                Hasta
+              </label>
+              <input
+                className="w-full px-4 py-3 text-base outline-none"
+                style={inputStyle}
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </div>
 
-              <div className="md:col-span-1">
-                <select
-                  className={inputClass}
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold" style={{ color: "#475569" }}>
+                Registros
+              </label>
+              <select
+                className="w-full px-4 py-3 text-base outline-none"
+                style={inputStyle}
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
 
-              <div className="md:col-span-2 flex gap-2">
-                <button
-                  className={`${softButton} flex-1`}
-                  onClick={onBuscar}
-                  disabled={loading}
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span>{loading ? "..." : "Buscar"}</span>
-                </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="px-3 py-1.5 text-sm rounded flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={orangeButtonStyle}
+              onClick={onLimpiar}
+              disabled={loading}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Limpiar
+            </button>
 
-                <button
-                  className={`${neutralButton} flex-1`}
-                  onClick={onLimpiar}
-                  disabled={loading}
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span>Limpiar</span>
-                </button>
-              </div>
+            <div
+              className="flex min-h-[44px] items-center justify-center rounded-2xl border px-4 py-2 text-sm font-semibold"
+              style={{
+                backgroundColor: loading ? "#fff7ed" : "#f8fafc",
+                borderColor: loading ? "#fdba74" : "#dbe4ee",
+                color: loading ? "#ea580c" : "#475569",
+              }}
+            >
+              {loading ? "Buscando automáticamente..." : `Resultados: ${total}`}
             </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[1.35rem] border border-[#c7d6e6] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-          <div className="flex items-center justify-between border-b border-[#c7d6e6] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fc_100%)] px-5 py-4">
-            <span className="text-base font-semibold text-[#243f63]">
+        <div style={cardStyle} className="overflow-hidden">
+          <div
+            className="flex items-center justify-between border-b px-5 py-4"
+            style={{ backgroundColor: "#eef4fa", borderColor: "#dbe4ee" }}
+          >
+            <span className="text-lg font-bold" style={{ color: "#1e3a5f" }}>
               Compras registradas ({total})
             </span>
-            <div className="rounded-full border border-[#bfd0e2] bg-white px-3 py-1 text-xs font-semibold text-[#557397]">
-              Página {page} de {totalPages}
+
+            <div className="flex items-center gap-3">
+              {loading && (
+                <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "#ea580c" }}>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Cargando...
+                </div>
+              )}
+
+              <div
+                className="rounded-full border px-3 py-1 text-xs font-semibold"
+                style={{
+                  borderColor: "#bfd0e2",
+                  backgroundColor: "#ffffff",
+                  color: "#557397",
+                }}
+              >
+                Página {page} de {totalPages}
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-[#dfe9f3] text-[12px] uppercase tracking-wide text-[#49678f]">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-sm">
+              <thead style={{ backgroundColor: "#f8fbff" }}>
                 <tr>
-                  <th className="px-4 py-4 text-left font-bold">Fecha</th>
-                  <th className="px-4 py-4 text-left font-bold">Folio</th>
-                  <th className="px-4 py-4 text-left font-bold">Proveedor</th>
-                  <th className="px-4 py-4 text-left font-bold">Estado</th>
-                  <th className="px-4 py-4 text-right font-bold">Total</th>
-                  <th className="px-4 py-4 text-left font-bold">MOD</th>
-                  <th className="px-4 py-4 text-right font-bold">Acciones</th>
+                  {[
+                    ["Fecha", "left"],
+                    ["Folio", "left"],
+                    ["Proveedor", "left"],
+                    ["Estado", "left"],
+                    ["Total", "right"],
+                    ["MOD", "left"],
+                    ["Acciones", "right"],
+                  ].map(([label, align]) => (
+                    <th
+                      key={label}
+                      className={`px-5 py-4 text-${align}`}
+                      style={{ color: "#36567c", fontSize: "15px", fontWeight: 800 }}
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#d8e3ee]">
-                {items.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    className={`transition-colors hover:bg-[#fff8f1] ${idx % 2 === 0 ? "bg-white" : "bg-[#fcfdff]"}`}
-                  >
-                    <td className="whitespace-nowrap px-4 py-5 text-xs text-[#557397]">
-                      {formatDateTime(row.fecha)}
-                    </td>
-
-                    <td className="px-4 py-5 text-xs font-semibold text-[#0f2742]">
-                      {row.folioFactura || "—"}
-                    </td>
-
-                    <td className="max-w-[240px] truncate px-4 py-5 text-xs text-[#48688f]">
-                      {row.proveedorNombre}
-                    </td>
-
-                    <td className="px-4 py-5">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getEstadoBadgeClass(row.estado)}`}
-                      >
-                        {row.estado || "—"}
-                      </span>
-
-                      {row.estado === "Rechazada" && row.motivoRechazo && (
-                        <div
-                          className="mt-1 max-w-[160px] truncate text-[10px] text-red-500"
-                          title={row.motivoRechazo}
-                        >
-                          {row.motivoRechazo}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-5 text-right text-sm font-semibold text-[#0f2742]">
-                      {formatMoney(row.total)}
-                    </td>
-
-                    <td className="px-4 py-5">
-                      {row.modConsecutivo ? (
-                        <span className="inline-flex rounded-full border border-[#bfd0e2] bg-[#f5f9fd] px-3 py-1 text-xs font-semibold text-[#557397]">
-                          {String(row.modConsecutivo).padStart(9, "0")}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-5">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          className={`${iconButtonBase} border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40`}
-                          onClick={() => onViewPdf(row)}
-                          disabled={!canUserDownload(row)}
-                          title={!canUserDownload(row) ? "No disponible" : "Ver PDF"}
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-
-                        <button
-                          className={`${iconButtonBase} border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40`}
-                          onClick={() => onDownloadPdf(row)}
-                          disabled={!canUserDownload(row)}
-                          title={!canUserDownload(row) ? "No disponible" : "Descargar PDF"}
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </button>
-
-                        {canEditCompra(isAdmin, row.estado) ? (
-                          <button
-                            className={`${iconButtonBase} border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100`}
-                            onClick={() => onEditar(row)}
-                            title={isAdmin ? "Editar compra" : "Seguir editando"}
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        ) : null}
-
-                        {isAdmin && canAdminDownloadMod(row) && (
-                          <button
-                            className={`${iconButtonBase} border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100`}
-                            onClick={() => onDownloadMod(row)}
-                            title="Descargar MOD"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
+              <tbody>
                 {!loading && (!items || items.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
-                      No hay resultados
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <svg className="h-10 w-10" style={{ color: "#94a3b8" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span className="text-base font-semibold" style={{ color: "#475569" }}>
+                          No hay resultados
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 )}
 
+                {items.map((row, index) => {
+                  const statusStyles = getStatusStyles(row.estado);
+
+                  return (
+                    <tr
+                      key={row.id}
+                      style={{
+                        backgroundColor: index % 2 === 0 ? "#ffffff" : "#fbfdff",
+                        borderTop: "1px solid #e6edf5",
+                      }}
+                    >
+                      <td className="px-5 py-5 align-middle text-sm font-medium" style={{ color: "#334155" }}>
+                        {formatDateTime(row.fecha)}
+                      </td>
+
+                      <td className="px-5 py-5 align-middle">
+                        <span className="font-mono text-base font-bold" style={{ color: "#0f172a" }}>
+                          {row.folioFactura || "—"}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-5 align-middle">
+                        <div className="max-w-[260px] truncate text-sm font-semibold" style={{ color: "#36567c" }}>
+                          {row.proveedorNombre}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-5 align-middle">
+                        <span
+                          className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
+                          style={statusStyles.badge}
+                        >
+                          <span className="h-2 w-2 rounded-full" style={statusStyles.dot} />
+                          {statusStyles.label}
+                        </span>
+
+                        {row.estado === "Rechazada" && row.motivoRechazo && (
+                          <div
+                            className="mt-1 max-w-[180px] truncate text-[11px] font-medium"
+                            style={{ color: "#dc2626" }}
+                            title={row.motivoRechazo}
+                          >
+                            {row.motivoRechazo}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-5 text-right align-middle">
+                        <span className="text-base font-bold" style={{ color: "#0f172a" }}>
+                          {formatMoney(row.total)}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-5 align-middle">
+                        {row.modConsecutivo ? (
+                          <span
+                            className="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                            style={{
+                              borderColor: "#bfd0e2",
+                              backgroundColor: "#f5f9fd",
+                              color: "#557397",
+                            }}
+                          >
+                            {String(row.modConsecutivo).padStart(9, "0")}
+                          </span>
+                        ) : (
+                          <span className="text-xs" style={{ color: "#94a3b8" }}>
+                            —
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-5 align-middle">
+                        <div className="flex justify-end gap-2">
+                          <ActionButton
+                            tone="green"
+                            onClick={() => onViewPdf(row)}
+                            disabled={!canUserDownload(row)}
+                            title={!canUserDownload(row) ? "No disponible" : "Ver PDF"}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </ActionButton>
+
+                          <ActionButton
+                            tone="slate"
+                            onClick={() => onDownloadPdf(row)}
+                            disabled={!canUserDownload(row)}
+                            title={!canUserDownload(row) ? "No disponible" : "Descargar PDF"}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </ActionButton>
+
+                          {canEditCompra(isAdmin, row.estado) ? (
+                            <ActionButton
+                              tone="orange"
+                              onClick={() => onEditar(row)}
+                              title={isAdmin ? "Editar compra" : "Seguir editando"}
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </ActionButton>
+                          ) : null}
+
+                          {isAdmin && canAdminDownloadMod(row) && (
+                            <ActionButton
+                              tone="blue"
+                              onClick={() => onDownloadMod(row)}
+                              title="Descargar MOD"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                              </svg>
+                            </ActionButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
                 {loading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
-                      Cargando...
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <div className="text-sm font-medium" style={{ color: "#64748b" }}>
+                        Cargando...
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -506,9 +808,17 @@ export default function HistorialComprasPage() {
             </table>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-[#c7d6e6] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fc_100%)] px-5 py-4">
+          <div
+            className="flex justify-end gap-2 border-t px-5 py-4"
+            style={{ backgroundColor: "#eef4fa", borderColor: "#dbe4ee" }}
+          >
             <button
-              className="inline-flex items-center gap-1 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-2xl border px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                borderColor: "#cbd5e1",
+                backgroundColor: "#ffffff",
+                color: "#475569",
+              }}
               disabled={page <= 1}
               onClick={() => {
                 const p = Math.max(1, page - 1);
@@ -523,7 +833,12 @@ export default function HistorialComprasPage() {
             </button>
 
             <button
-              className="inline-flex items-center gap-1 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100 hover:border-orange-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-2xl border px-4 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                borderColor: "#fdba74",
+                backgroundColor: "#fff7ed",
+                color: "#ea580c",
+              }}
               disabled={page >= totalPages}
               onClick={() => {
                 const p = Math.min(totalPages, page + 1);
@@ -539,34 +854,6 @@ export default function HistorialComprasPage() {
           </div>
         </div>
       </div>
-
-      {pdfOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[4px]">
-          <div className="w-full max-w-5xl overflow-hidden rounded-[1.4rem] border border-[#c7d6e6] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
-            <div className="flex items-center justify-between border-b border-[#c7d6e6] bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ea_100%)] px-5 py-4">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f2742]">
-                <svg className="h-4 w-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                {pdfTitle}
-              </h3>
-
-              <button
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 transition hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700"
-                onClick={closePdf}
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="h-[70vh] bg-white">
-              {pdfUrl && <iframe title="pdf-viewer" src={pdfUrl} className="h-full w-full" />}
-            </div>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }

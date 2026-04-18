@@ -1,6 +1,7 @@
 ﻿using Comssire.Auth;
 using Comssire.Data;
 using Comssire.Services.Compras;
+using Comssire.Services.ComprasRemision;
 using Comssire.Services.Security;
 using Comssire.Services.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -15,15 +16,15 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 /*
- * ✅ QuestPDF:
+ * QuestPDF:
  * Inicializar licencia global al arrancar la API para evitar
- * errores intermitentes al generar PDFs en Inventarios/Compras.
+ * errores intermitentes al generar PDFs.
  */
 QuestPDF.Settings.License = LicenseType.Community;
 
 /*
  * Registro de servicios base (controllers).
- * ✅ IgnoreCycles para evitar 500 por ciclos en EF navigations
+ * IgnoreCycles para evitar 500 por ciclos en EF navigations
  */
 builder.Services
     .AddControllers()
@@ -66,7 +67,7 @@ builder.Services.AddCors(options =>
 });
 
 /*
- * Swagger configurado para JWT:
+ * Swagger configurado para JWT
  */
 builder.Services.AddSwaggerGen(c =>
 {
@@ -99,26 +100,26 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 /*
- * Registro del DbContext (PostgreSQL).
+ * Registro del DbContext (PostgreSQL)
  */
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
 
 /*
- * Configuración JWT:
+ * Configuración JWT
  */
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt")
 );
 
 /*
- * Servicios de seguridad:
+ * Servicios de seguridad
  */
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 /*
- * Autenticación JWT (Bearer):
+ * Autenticación JWT (Bearer)
  */
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -144,20 +145,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 /*
- * Autorización:
+ * Autorización
  */
 builder.Services.AddAuthorization();
 
 /*
- * Autorización por permisos (policies dinámicas):
+ * Autorización por permisos (policies dinámicas)
  */
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
 
 /*
- * Servicios de Compras / PDF:
+ * Servicios de Compras / PDF
  */
 builder.Services.AddScoped<CompraPdfService>();
+builder.Services.AddScoped<CompraRemisionPdfService>();
 
 /*
  * Storage (Railway Bucket / S3-compatible)
@@ -168,7 +170,7 @@ builder.Services.AddScoped<IStorageService, S3StorageService>();
 var app = builder.Build();
 
 /*
- * Swagger solo en Development.
+ * Swagger solo en Development
  */
 if (app.Environment.IsDevelopment())
 {
@@ -187,7 +189,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 /*
- * ✅ SEED AUTOMÁTICO:
+ * Seed automático
  */
 using (var scope = app.Services.CreateScope())
 {

@@ -1,5 +1,6 @@
 ﻿using Comssire.Models;
 using Comssire.Models.Compras;
+using Comssire.Models.ComprasRemision;
 using Comssire.Models.Firebird;
 using Comssire.Models.Inventarios;
 using Comssire.Models.Sistema;
@@ -32,6 +33,12 @@ public class AppDbContext : DbContext
     public DbSet<CompraPartidaAlmacen> CompraPartidasAlmacen => Set<CompraPartidaAlmacen>();
     public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
     public DbSet<CompraFactura> CompraFacturas => Set<CompraFactura>();
+
+    // COMPRAS POR NOTA DE REMISION
+    public DbSet<CompraRemision> ComprasRemision => Set<CompraRemision>();
+    public DbSet<CompraRemisionPartida> CompraRemisionPartidas => Set<CompraRemisionPartida>();
+    public DbSet<CompraRemisionPartidaAlmacen> CompraRemisionPartidasAlmacen => Set<CompraRemisionPartidaAlmacen>();
+
 
     // INVENTARIOS (TOMA)
     public DbSet<InvToma> InvTomas => Set<InvToma>();
@@ -244,6 +251,43 @@ public class AppDbContext : DbContext
             .WithOne()
             .HasForeignKey<CompraFactura>(x => x.CompraId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // =========================
+        // COMPRAS POR NOTA DE REMISION
+        // =========================
+        modelBuilder.Entity<CompraRemision>()
+            .HasMany(c => c.Partidas)
+            .WithOne(p => p.CompraRemision)
+            .HasForeignKey(p => p.CompraRemisionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CompraRemisionPartida>()
+            .HasMany(p => p.Repartos)
+            .WithOne(r => r.Partida)
+            .HasForeignKey(r => r.CompraRemisionPartidaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CompraRemision>()
+            .HasOne(c => c.CreadoPor)
+            .WithMany()
+            .HasForeignKey(c => c.CreadoPorUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CompraRemision>()
+            .HasIndex(c => c.FolioRemision);
+
+        modelBuilder.Entity<CompraRemision>()
+            .HasIndex(c => c.Fecha);
+
+        modelBuilder.Entity<CompraRemision>()
+            .HasIndex(c => c.CveClpv);
+
+        modelBuilder.Entity<CompraRemisionPartida>()
+            .HasIndex(p => p.CveArt);
+
+        modelBuilder.Entity<CompraRemisionPartidaAlmacen>()
+            .HasIndex(r => r.NumAlm);
+
 
         base.OnModelCreating(modelBuilder);
     }

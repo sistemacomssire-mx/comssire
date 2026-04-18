@@ -28,6 +28,14 @@ public static class DbSeeder
             ("compras.editar_todas", "Editar cualquier compra"),
             ("compras.generar_mod", "Generar archivo MOD"),
 
+            // Compras por nota de remisión
+            ("compras_remision.ver", "Ver compras por nota de remisión"),
+            ("compras_remision.crear", "Crear compras por nota de remisión"),
+            ("compras_remision.editar", "Editar compras por nota de remisión"),
+            ("compras_remision.eliminar", "Eliminar compras por nota de remisión"),
+            ("compras_remision.generar_mod", "Generar archivo MOD de compras por nota de remisión"),
+            ("compras_remision.generar_pdf", "Generar PDF de compras por nota de remisión"),
+
             // Usuarios
             ("usuarios.ver", "Ver usuarios"),
             ("usuarios.crear", "Crear usuarios"),
@@ -35,7 +43,7 @@ public static class DbSeeder
             ("usuarios.asignar_rol", "Asignar rol a usuario"),
             ("usuarios.reset_password", "Resetear contraseña de usuario"),
 
-            // ✅ Inventarios (NUEVOS)
+            // Inventarios
             ("inventarios.ver", "Ver inventario por almacén"),
             ("inventarios.toma.crear", "Crear toma de inventario"),
             ("inventarios.toma.capturar", "Capturar conteo físico en toma de inventario"),
@@ -64,19 +72,27 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        var allPermIds = await db.Permisos.Select(p => p.Id).ToListAsync();
-        var adminPermIds = await db.RolesPermisos.Where(rp => rp.RolId == adminRol.Id)
+        var allPermIds = await db.Permisos
+            .Select(p => p.Id)
+            .ToListAsync();
+
+        var adminPermIds = await db.RolesPermisos
+            .Where(rp => rp.RolId == adminRol.Id)
             .Select(rp => rp.PermisoId)
             .ToListAsync();
 
         foreach (var pid in allPermIds.Except(adminPermIds))
         {
-            db.RolesPermisos.Add(new RolPermiso { RolId = adminRol.Id, PermisoId = pid });
+            db.RolesPermisos.Add(new RolPermiso
+            {
+                RolId = adminRol.Id,
+                PermisoId = pid
+            });
         }
         await db.SaveChangesAsync();
 
         // --------------------------
-        // 3) Rol Trabajador (captura compras)
+        // 3) Rol Trabajador
         // --------------------------
         var trabajadorRol = await db.Roles.FirstOrDefaultAsync(r => r.Nombre == "Trabajador");
         if (trabajadorRol == null)
@@ -86,7 +102,8 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        // ✅ Permisos del trabajador:
+        // Permisos del trabajador:
+        // NOTA: compras_remision NO se asigna al trabajador.
         var clavesTrabajador = new[]
         {
             "compras.crear",
@@ -94,7 +111,7 @@ public static class DbSeeder
             "compras.enviar_aprobacion",
             "compras.ver",
 
-            // ✅ si quieres que trabajador pueda ver inventarios, descomenta:
+            // Si quieres que trabajador pueda ver inventarios, agrega:
             // "inventarios.ver"
         };
 
@@ -103,13 +120,18 @@ public static class DbSeeder
             .Select(p => p.Id)
             .ToListAsync();
 
-        var currentTrabajador = await db.RolesPermisos.Where(rp => rp.RolId == trabajadorRol.Id)
+        var currentTrabajador = await db.RolesPermisos
+            .Where(rp => rp.RolId == trabajadorRol.Id)
             .Select(rp => rp.PermisoId)
             .ToListAsync();
 
         foreach (var pid in trabajadorPermIds.Except(currentTrabajador))
         {
-            db.RolesPermisos.Add(new RolPermiso { RolId = trabajadorRol.Id, PermisoId = pid });
+            db.RolesPermisos.Add(new RolPermiso
+            {
+                RolId = trabajadorRol.Id,
+                PermisoId = pid
+            });
         }
         await db.SaveChangesAsync();
 

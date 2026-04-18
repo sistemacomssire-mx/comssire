@@ -1,6 +1,7 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import Swal from "sweetalert2";
 import logo from "../../../public/img/LogoComssire.png";
 import { authStorage } from "../../modules/Auth/store/auth.storage";
 import { toast } from "sonner";
@@ -9,8 +10,8 @@ function ModalShell({ open, children }) {
   if (!open) return null;
 
   return createPortal(
-    <div 
-      style={{ 
+    <div
+      style={{
         position: "fixed",
         top: 0,
         left: 0,
@@ -21,18 +22,20 @@ function ModalShell({ open, children }) {
         alignItems: "center",
         justifyContent: "center",
         zIndex: 999999,
-        padding: "1rem"
+        padding: "1rem",
       }}
     >
-      <div style={{ 
-        width: "100%",
-        maxWidth: "28rem",
-        backgroundColor: "#ffffff",
-        borderRadius: "1rem",
-        border: "3px solid #dc2626",
-        boxShadow: "0 25px 50px -12px rgba(220, 38, 38, 0.5)",
-        overflow: "hidden"
-      }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "28rem",
+          backgroundColor: "#ffffff",
+          borderRadius: "1rem",
+          border: "3px solid #dc2626",
+          boxShadow: "0 25px 50px -12px rgba(220, 38, 38, 0.5)",
+          overflow: "hidden",
+        }}
+      >
         {children}
       </div>
     </div>,
@@ -59,7 +62,7 @@ function ModalHeader({ icon, title, description, variant = "warning" }) {
   return (
     <div className="px-6 pt-6 pb-3">
       <div className="flex items-start gap-4">
-        <div 
+        <div
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"
           style={iconStyle}
         >
@@ -70,12 +73,12 @@ function ModalHeader({ icon, title, description, variant = "warning" }) {
           <h3 className="text-xl font-black uppercase tracking-wide" style={{ color: "#991b1b" }}>
             {title}
           </h3>
-          <p 
+          <p
             className="mt-2 text-sm font-semibold leading-relaxed p-3 rounded-lg"
-            style={{ 
-              backgroundColor: "transparent", 
-              color: "#991b1b", 
-              border: "1px solid #dc2626"
+            style={{
+              backgroundColor: "transparent",
+              color: "#991b1b",
+              border: "1px solid #dc2626",
             }}
           >
             {description}
@@ -100,11 +103,11 @@ function SecondaryButton({ children, onClick }) {
       type="button"
       onClick={onClick}
       className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-      style={{ 
-        backgroundColor: "transparent", 
-        color: "#fa891a", 
+      style={{
+        backgroundColor: "transparent",
+        color: "#fa891a",
         border: "2px solid #fa891a",
-        boxShadow: "none"
+        boxShadow: "none",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = "#fa891a";
@@ -126,11 +129,11 @@ function SoftOrangeButton({ children, onClick }) {
       type="button"
       onClick={onClick}
       className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-      style={{ 
-        backgroundColor: "transparent", 
-        color: "#f97316", 
+      style={{
+        backgroundColor: "transparent",
+        color: "#f97316",
         border: "2px solid #f97316",
-        boxShadow: "none"
+        boxShadow: "none",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = "#f97316";
@@ -152,11 +155,11 @@ function PrimaryButton({ children, onClick }) {
       type="button"
       onClick={onClick}
       className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-      style={{ 
-        backgroundColor: "transparent", 
-        color: "#fa891a", 
+      style={{
+        backgroundColor: "transparent",
+        color: "#fa891a",
         border: "2px solid #fa891a",
-        boxShadow: "none"
+        boxShadow: "none",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = "#fa891a";
@@ -169,58 +172,6 @@ function PrimaryButton({ children, onClick }) {
     >
       {children}
     </button>
-  );
-}
-
-function DangerButton({ children, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-      style={{ 
-        backgroundColor: "transparent", 
-        color: "#dc2626", 
-        border: "2px solid #dc2626",
-        boxShadow: "none"
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "#dc2626";
-        e.currentTarget.style.color = "#ffffff";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
-        e.currentTarget.style.color = "#dc2626";
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ConfirmLeaveComprasModal({ open, onCancel, onConfirm }) {
-  return (
-    <ModalShell open={open}>
-      <ModalHeader
-        variant="danger"
-        icon={
-          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-        }
-        title="Cambios sin guardar"
-        description="Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?"
-      />
-
-      <ModalFooter>
-        <SecondaryButton onClick={onCancel}>Cancelar</SecondaryButton>
-        <DangerButton onClick={onConfirm}>Salir</DangerButton>
-      </ModalFooter>
-    </ModalShell>
   );
 }
 
@@ -251,13 +202,48 @@ function ConfirmLeaveTomaModal({ open, onStay, onDiscard, onSaveAndLeave }) {
   );
 }
 
+const swalLeaveCompras = {
+  backdrop: "rgba(15, 23, 42, 0.22)",
+  background: "#ffffff",
+  heightAuto: false,
+  allowOutsideClick: false,
+  reverseButtons: true,
+  focusCancel: true,
+  customClass: {
+    popup: "swal2-popup-custom",
+    title: "swal2-title-custom",
+    htmlContainer: "swal2-text-custom",
+    actions: "swal2-actions-custom",
+    confirmButton: "swal2-confirm-custom",
+    cancelButton: "swal2-cancel-custom",
+  },
+  buttonsStyling: true,
+};
+
+async function confirmLeaveComprasSwal() {
+  return Swal.fire({
+    ...swalLeaveCompras,
+    icon: "warning",
+    title: "Cambios sin guardar",
+    text: "Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?",
+    showCancelButton: true,
+    confirmButtonText: "Salir",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#f97316",
+  });
+}
+
 function SidebarContent({ onNavigate }) {
   const year = new Date().getFullYear();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [openMenus, setOpenMenus] = useState({ compras: false, inventario: false });
-  const [confirmComprasOpen, setConfirmComprasOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState({
+    compras: false,
+    comprasRemision: false,
+    inventario: false,
+  });
   const [confirmTomaOpen, setConfirmTomaOpen] = useState(false);
   const [pendingTo, setPendingTo] = useState(null);
 
@@ -284,11 +270,15 @@ function SidebarContent({ onNavigate }) {
     auth.hasPerm("compras.aprobar") ||
     auth.hasPerm("compras.rechazar");
 
+  const canSeeComprasRemision = auth.isAdmin;
+
   useEffect(() => {
     const path = location.pathname;
+
     setOpenMenus((prev) => ({
       ...prev,
-      compras: path.startsWith("/compras"),
+      compras: path.startsWith("/compras") && !path.startsWith("/compras-remision"),
+      comprasRemision: path.startsWith("/compras-remision"),
       inventario: path.startsWith("/inventario"),
     }));
   }, [location.pathname]);
@@ -301,32 +291,34 @@ function SidebarContent({ onNavigate }) {
     if (onNavigate) onNavigate();
   };
 
-  const handleGuardedNav = (e, to) => {
+  const normalizePath = (path) => String(path || "").replace(/\/+$/, "") || "/";
+  const samePath = (to) => normalizePath(to) === normalizePath(location.pathname);
+
+  const handleGuardedNav = async (e, to) => {
+    if (samePath(to)) {
+      if (onNavigate) onNavigate();
+      return;
+    }
+
     if (window.__COMSSIRE_TOMA_GUARD?.active) {
       e.preventDefault();
       setPendingTo(to);
       setConfirmTomaOpen(true);
       return;
     }
+
     if (window.__COMSSIRE_DIRTY) {
       e.preventDefault();
-      setPendingTo(to);
-      setConfirmComprasOpen(true);
+      const result = await confirmLeaveComprasSwal();
+
+      if (result.isConfirmed) {
+        window.__COMSSIRE_DIRTY = false;
+        go(to);
+      }
       return;
     }
+
     if (onNavigate) onNavigate();
-  };
-
-  const confirmLeaveCompras = () => {
-    setConfirmComprasOpen(false);
-    window.__COMSSIRE_DIRTY = false;
-    if (pendingTo) go(pendingTo);
-    setPendingTo(null);
-  };
-
-  const cancelLeaveCompras = () => {
-    setConfirmComprasOpen(false);
-    setPendingTo(null);
   };
 
   const stayToma = () => {
@@ -390,11 +382,6 @@ function SidebarContent({ onNavigate }) {
 
   return (
     <>
-      <ConfirmLeaveComprasModal
-        open={confirmComprasOpen}
-        onCancel={cancelLeaveCompras}
-        onConfirm={confirmLeaveCompras}
-      />
       <ConfirmLeaveTomaModal
         open={confirmTomaOpen}
         onStay={stayToma}
@@ -447,7 +434,9 @@ function SidebarContent({ onNavigate }) {
 
         <div className="space-y-0.5">
           <button
-            className={getMenuButtonClass(location.pathname.startsWith("/compras"))}
+            className={getMenuButtonClass(
+              location.pathname.startsWith("/compras") && !location.pathname.startsWith("/compras-remision")
+            )}
             onClick={() => toggleMenu("compras")}
             type="button"
           >
@@ -508,6 +497,61 @@ function SidebarContent({ onNavigate }) {
             )}
           </div>
         </div>
+
+        {canSeeComprasRemision && (
+          <div className="space-y-0.5">
+            <button
+              className={getMenuButtonClass(location.pathname.startsWith("/compras-remision"))}
+              onClick={() => toggleMenu("comprasRemision")}
+              type="button"
+            >
+              <span className="flex items-center gap-3">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <span>Compras Remisión</span>
+              </span>
+              <svg
+                className={`h-4 w-4 transition-transform duration-200 ${openMenus.comprasRemision ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div
+              className={`overflow-hidden pl-9 space-y-0.5 transition-all duration-200 ${
+                openMenus.comprasRemision ? "max-h-32" : "max-h-0"
+              }`}
+            >
+              <NavLink
+                to="/compras-remision"
+                end
+                className={({ isActive }) => getSubMenuItemClass(isActive)}
+                onClick={(e) => handleGuardedNav(e, "/compras-remision")}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                <span>Nueva Remisión</span>
+              </NavLink>
+
+              <NavLink
+                to="/compras-remision/historial"
+                className={({ isActive }) => getSubMenuItemClass(isActive)}
+                onClick={(e) => handleGuardedNav(e, "/compras-remision/historial")}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                <span>Historial Remisión</span>
+              </NavLink>
+            </div>
+          </div>
+        )}
 
         {canSeeInventario && (
           <div className="space-y-0.5">
