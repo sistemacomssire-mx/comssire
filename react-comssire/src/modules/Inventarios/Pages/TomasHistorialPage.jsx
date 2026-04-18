@@ -457,9 +457,7 @@ export default function TomasHistorialPage() {
                 </svg>
                 Historial de tomas
               </h2>
-              <p className="mt-1 text-sm font-medium" style={{ color: "#64748b" }}>
-                Filtros y acciones optimizados para tablet.
-              </p>
+               
             </div>
 
             <div className="flex flex-wrap gap-2 self-start">

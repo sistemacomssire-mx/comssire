@@ -537,7 +537,7 @@ export default function UsuariosPage() {
                 Usuarios
               </div>
               <h2 className="mt-1 text-lg font-semibold text-slate-800">Registrar usuario</h2>
-              <p className="mt-1 text-sm text-slate-500">Registra un trabajador, genera credenciales y compártelas rápido.</p>
+               
             </div>
             <span className="inline-flex min-h-[34px] items-center rounded-full border border-orange-200 bg-orange-50 px-3 text-sm font-medium text-orange-700">
               Admin

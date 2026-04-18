@@ -475,9 +475,7 @@ export default function HistorialComprasPage() {
                 </svg>
                 Historial de compras
               </h2>
-              <p className="mt-1 text-sm font-medium" style={{ color: "#64748b" }}>
-                Filtros automáticos y acciones con la misma estructura visual del sistema.
-              </p>
+              
             </div>
 
             <div className="flex flex-wrap gap-2 self-start">

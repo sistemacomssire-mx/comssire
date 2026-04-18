@@ -465,9 +465,7 @@ export default function HistorialComprasRemisionPage() {
                 </svg>
                 Historial de compras remisión
               </h2>
-              <p className="mt-1 text-sm font-medium" style={{ color: "#64748b" }}>
-                Misma estructura visual de Historial Compras con filtros automáticos y acciones por icono.
-              </p>
+               
             </div>
 
             <div className="flex flex-wrap gap-2 self-start">
